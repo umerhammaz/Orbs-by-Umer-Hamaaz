@@ -218,12 +218,63 @@ function buildEngineControls() {
 // --- Code export ---------------------------------------------------------------
 let activeFormat = 'esm';
 
+const EXPORT_DEFAULTS = {
+  color: '255, 255, 255',
+  color2: '90, 90, 90',
+  colorMode: 'solid',
+  trail: 0.25,
+  speedX: 0.012,
+  speedY: 0.018,
+  speedZ: 0,
+  fov: 360,
+  pointSize: 2.2,
+  density: 1,
+  seed: 1337,
+  projection: 'perspective',
+  zoom: 1,
+  depthFade: 1,
+  sizeByDepth: 1,
+  depthSort: false,
+  inertia: 0,
+  lockAxis: 'none',
+  interactive: true
+};
+
+function literal(value, depth = 0) {
+  const pad = '  '.repeat(depth + 1);
+  const end = '  '.repeat(depth);
+  if (typeof value === 'string') {
+    return "'" + value.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
+  }
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value);
+    if (!entries.length) return '{}';
+    const body = entries
+      .map(([k, v]) => pad + (/^[A-Za-z_$][\w$]*$/.test(k) ? k : literal(k)) + ': ' + literal(v, depth + 1))
+      .join(',\n');
+    return '{\n' + body + '\n' + end + '}';
+  }
+  return String(value);
+}
+
+function exportConfig() {
+  const state = studio.getState();
+  const out = { shape: state.shape };
+  for (const [k, v] of Object.entries(state)) {
+    if (k === 'shape' || k === 'shapeParams') continue;
+    if (EXPORT_DEFAULTS[k] !== v) out[k] = v;
+  }
+  if (state.shapeParams) out.shapeParams = state.shapeParams;
+  return out;
+}
+
 function updateCodeSnippet() {
   if (!codeSnippet) return;
-  const json = JSON.stringify(studio.getState(), null, 2);
+  const json = literal(exportConfig());
 
   if (activeFormat === 'esm') {
-    codeSnippet.textContent = `import DotMatrix from './dot-matrix.js';
+    codeSnippet.textContent = `// Requires dot-matrix.js and shapes.js in the same folder
+import DotMatrix from './dot-matrix.js';
 
 // Initialize in any container (modal, hero, or AI card)
 const matrix = new DotMatrix('#container', ${json});
