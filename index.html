@@ -30,7 +30,7 @@
       </div>
       <div class="hero-content">
         <h1 class="hero-title">PRECISION 3D LATTICE.</h1>
-        <p class="hero-sub">Zero dependencies. Pure mathematical projection. 6KB hardware-accelerated volumetric engine designed for tactile instrument panels.</p>
+<p class="hero-sub">Zero dependencies. Pure mathematical projection. A lightweight hardware-accelerated volumetric engine with parametric shapes, designed for tactile instrument panels.</p>
       </div>
     </div>
   </header>
@@ -110,6 +110,28 @@
           </div>
 
           <div>
+<div class="panel-subhead panel-subhead-row">
+              <span>Shape Parameters</span>
+              <button class="mini-btn" id="btn-reset-params">Reset</button>
+            </div>
+            <div class="sliders-group" id="shape-params"></div>
+          </div>
+
+          <div>
+            <div class="panel-subhead">Camera</div>
+            <div class="sliders-group" id="camera-controls"></div>
+          </div>
+
+          <div>
+            <div class="panel-subhead">Render</div>
+            <div class="sliders-group" id="render-controls"></div>
+            <div class="btn-row">
+              <button class="pill-btn" id="btn-randomize" style="flex: 1;">New Seed</button>
+              <button class="pill-btn" id="btn-share" style="flex: 1;">Copy Link</button>
+            </div>
+          </div>
+
+          <div>
             <div class="panel-subhead">Subsystem Diagnostics</div>
             <div class="data-table">
               <div class="data-row">
@@ -118,7 +140,7 @@
               </div>
               <div class="data-row">
                 <span class="data-k">Engine Size</span>
-                <span class="data-v">&lt; 6.2 KB (No three.js)</span>
+<span class="data-v">&lt; 15 KB (No three.js)</span>
               </div>
               <div class="data-row">
                 <span class="data-k">Buffer Status</span>

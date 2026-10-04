@@ -16,61 +16,223 @@ new DotMatrix('#hero-wave', {
 // ==========================================================================
 // 2. Main Studio Laboratory with Telemetry HUD
 // ==========================================================================
-const hudShape = document.getElementById('hud-shape');
-const hudPoints = document.getElementById('hud-points');
-const hudRot = document.getElementById('hud-rot');
-const hudFps = document.getElementById('hud-fps');
-const codeSnippet = document.getElementById('live-code-snippet');
-
-let currentShape = 'cube';
-let speedMultiplier = 1.0;
-let currentFov = 360;
-let currentRadius = 2.2;
+const $ = (id) => document.getElementById(id);
+const hudShape = $('hud-shape');
+const hudPoints = $('hud-points');
+const hudRot = $('hud-rot');
+const hudFps = $('hud-fps');
+const codeSnippet = $('live-code-snippet');
 
 const baseSpeedX = 0.012;
 const baseSpeedY = 0.018;
+const DEFAULT_FOV = 360;
+const DEFAULT_RADIUS = 2.2;
+
+const ENGINE_DEFAULTS = {
+  speedZ: 0,
+  zoom: 1,
+  projection: 'perspective',
+  inertia: 0,
+  lockAxis: 'none',
+  density: 1,
+  trail: 0.25,
+  depthFade: 1,
+  sizeByDepth: 1,
+  colorMode: 'solid',
+  color: '255, 255, 255',
+  color2: '90, 90, 90',
+  depthSort: false,
+  seed: 1337
+};
+
+const CAMERA_CONTROLS = [
+  { key: 'speedZ', label: 'Roll Speed', type: 'number', min: -0.05, max: 0.05, step: 0.001 },
+  { key: 'zoom', label: 'Zoom', type: 'number', min: 0.4, max: 2.5, step: 0.05 },
+  { key: 'projection', label: 'Projection', type: 'enum', options: ['perspective', 'orthographic'] },
+  { key: 'inertia', label: 'Drag Inertia', type: 'number', min: 0, max: 0.98, step: 0.02 },
+  { key: 'lockAxis', label: 'Lock Drag Axis', type: 'enum', options: ['none', 'x', 'y'] }
+];
+
+const RENDER_CONTROLS = [
+  { key: 'density', label: 'Density', type: 'number', min: 0.25, max: 3, step: 0.25 },
+  { key: 'trail', label: 'Trail Fade', type: 'number', min: 0.05, max: 1, step: 0.05 },
+  { key: 'depthFade', label: 'Depth Fade', type: 'number', min: 0, max: 1, step: 0.05 },
+  { key: 'sizeByDepth', label: 'Size By Depth', type: 'number', min: 0, max: 1, step: 0.05 },
+  { key: 'colorMode', label: 'Color Mode', type: 'enum', options: ['solid', 'depth', 'height'] },
+  { key: 'color', label: 'Color', type: 'color' },
+  { key: 'color2', label: 'Color 2', type: 'color' },
+  { key: 'depthSort', label: 'Depth Sort', type: 'bool' },
+  { key: 'seed', label: 'Seed', type: 'int', min: 1, max: 9999, widget: 'number' }
+];
+
+let frameCount = 0;
 
 const studio = new DotMatrix('#main-stage', {
-  shape: currentShape,
+  shape: 'cube',
   color: '255, 255, 255',
-  speedX: baseSpeedX * speedMultiplier,
-  speedY: baseSpeedY * speedMultiplier,
-  fov: currentFov,
-  pointSize: currentRadius,
+  speedX: baseSpeedX,
+  speedY: baseSpeedY,
+  fov: DEFAULT_FOV,
+  pointSize: DEFAULT_RADIUS,
   trail: 0.25,
   interactive: true,
   onFrame: (telemetry) => {
     if (hudPoints) hudPoints.textContent = String(telemetry.points).padStart(4, '0');
     if (hudRot) hudRot.textContent = `${(telemetry.ax % (Math.PI * 2)).toFixed(2)} / ${(telemetry.ay % (Math.PI * 2)).toFixed(2)}`;
+    frameCount++;
+    if (hudFps && frameCount % 20 === 0) hudFps.textContent = `${Math.round(telemetry.fps)} FPS`;
   }
 });
 
-// Current code format: 'esm' or 'html'
+// --- Dynamic control builder -------------------------------------------------
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+function decimals(step) {
+  const s = String(step);
+  const i = s.indexOf('.');
+  return i < 0 ? 0 : s.length - i - 1;
+}
+
+const rgbToHex = (str) => '#' + str.split(',').map((n) => Math.max(0, Math.min(255, Number(n.trim()) || 0)).toString(16).padStart(2, '0')).join('');
+const hexToRgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ');
+
+function makeControl(spec) {
+  const row = el('div', 'slider-row');
+  const head = el('div', 'slider-header');
+  const readout = el('span', 'slider-readout');
+  head.append(el('span', null, spec.label), readout);
+  row.appendChild(head);
+
+  if (spec.type === 'number' || (spec.type === 'int' && !spec.widget)) {
+    const d = decimals(spec.step);
+    const input = el('input');
+    input.type = 'range';
+    input.min = spec.min;
+    input.max = spec.max;
+    input.step = spec.step;
+    input.value = spec.value;
+    readout.textContent = Number(spec.value).toFixed(d);
+    input.addEventListener('input', () => {
+      const v = spec.type === 'int' ? parseInt(input.value, 10) : parseFloat(input.value);
+      readout.textContent = v.toFixed(d);
+      spec.onInput(v);
+    });
+    row.appendChild(input);
+  } else if (spec.type === 'int') {
+    const input = el('input', 'ctl-number');
+    input.type = 'number';
+    input.min = spec.min;
+    input.max = spec.max;
+    input.step = 1;
+    input.value = spec.value;
+    readout.textContent = String(spec.value);
+    input.addEventListener('change', () => {
+      const v = Math.max(spec.min, Math.min(spec.max, parseInt(input.value, 10) || spec.min));
+      input.value = v;
+      readout.textContent = String(v);
+      spec.onInput(v);
+    });
+    row.appendChild(input);
+  } else if (spec.type === 'enum') {
+    const select = el('select', 'ctl-select');
+    for (const opt of spec.options) {
+      const o = el('option', null, opt.toUpperCase());
+      o.value = opt;
+      select.appendChild(o);
+    }
+    select.value = spec.value;
+    readout.textContent = String(spec.value).toUpperCase();
+    select.addEventListener('change', () => {
+      readout.textContent = select.value.toUpperCase();
+      spec.onInput(select.value);
+    });
+    row.appendChild(select);
+  } else if (spec.type === 'bool') {
+    const input = el('input', 'ctl-check');
+    input.type = 'checkbox';
+    input.checked = !!spec.value;
+    readout.textContent = spec.value ? 'ON' : 'OFF';
+    input.addEventListener('change', () => {
+      readout.textContent = input.checked ? 'ON' : 'OFF';
+      spec.onInput(input.checked);
+    });
+    row.appendChild(input);
+  } else if (spec.type === 'color') {
+    const input = el('input', 'ctl-color');
+    input.type = 'color';
+    input.value = rgbToHex(spec.value);
+    readout.textContent = input.value.toUpperCase();
+    input.addEventListener('input', () => {
+      readout.textContent = input.value.toUpperCase();
+      spec.onInput(hexToRgb(input.value));
+    });
+    row.appendChild(input);
+  }
+  return row;
+}
+
+const paramsBox = $('shape-params');
+const cameraBox = $('camera-controls');
+const renderBox = $('render-controls');
+
+function buildShapeParams() {
+  if (!paramsBox) return;
+  paramsBox.innerHTML = '';
+  const schema = DotMatrix.getSchema(studio.opts.shape);
+  for (const [key, s] of Object.entries(schema)) {
+    paramsBox.appendChild(makeControl({
+      ...s,
+      value: studio.P[key],
+      onInput: (v) => {
+        studio.setShapeParam(key, v);
+        updateCodeSnippet();
+      }
+    }));
+  }
+}
+
+function buildEngineControls() {
+  const fill = (box, list) => {
+    if (!box) return;
+    box.innerHTML = '';
+    for (const c of list) {
+      box.appendChild(makeControl({
+        ...c,
+        value: studio.opts[c.key],
+        onInput: (v) => {
+          studio.updateOptions({ [c.key]: v });
+          updateCodeSnippet();
+        }
+      }));
+    }
+  };
+  fill(cameraBox, CAMERA_CONTROLS);
+  fill(renderBox, RENDER_CONTROLS);
+}
+
+// --- Code export ---------------------------------------------------------------
 let activeFormat = 'esm';
 
-// Update live code display
 function updateCodeSnippet() {
   if (!codeSnippet) return;
-  const sx = (baseSpeedX * speedMultiplier).toFixed(4);
-  const sy = (baseSpeedY * speedMultiplier).toFixed(4);
+  const json = JSON.stringify(studio.getState(), null, 2);
 
   if (activeFormat === 'esm') {
     codeSnippet.textContent = `import DotMatrix from './dot-matrix.js';
 
 // Initialize in any container (modal, hero, or AI card)
-const matrix = new DotMatrix('#container', {
-  shape: '${currentShape}',
-  speedX: ${sx},
-  speedY: ${sy},
-  fov: ${currentFov},
-  pointSize: ${currentRadius},
-  trail: 0.25,
-  interactive: true,
-  onFrame: (telemetry) => {
-    // Optional telemetry hook
-  }
-});`;
+const matrix = new DotMatrix('#container', ${json});
+
+// Live tweaks:
+// matrix.setShapeParam('key', value);
+// matrix.updateOptions({ zoom: 1.2 });`;
   } else {
+    const cfg = json.split('\n').join('\n    ');
     codeSnippet.textContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -86,33 +248,23 @@ const matrix = new DotMatrix('#container', {
   <script type="module">
     import DotMatrix from 'https://cdn.jsdelivr.net/gh/umerhammaz/Orbs-by-Umer-Hamaaz@main/src/dot-matrix.js';
 
-    new DotMatrix('#orb-stage', {
-      shape: '${currentShape}',
-      speedX: ${sx},
-      speedY: ${sy},
-      fov: ${currentFov},
-      pointSize: ${currentRadius},
-      trail: 0.25,
-      interactive: true
-    });
+    new DotMatrix('#orb-stage', ${cfg});
   <\/script>
 </body>
 </html>`;
   }
 }
 
-// Code Format Tabs
-document.querySelectorAll('.tab-btn').forEach(btn => {
+document.querySelectorAll('.tab-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
     btn.classList.add('active');
     activeFormat = btn.dataset.format;
     updateCodeSnippet();
   });
 });
 
-// Copy Code Button
-const copyBtn = document.getElementById('btn-copy-code');
+const copyBtn = $('btn-copy-code');
 copyBtn?.addEventListener('click', async () => {
   const text = codeSnippet ? codeSnippet.textContent : '';
   try {
@@ -132,84 +284,134 @@ copyBtn?.addEventListener('click', async () => {
   }
 });
 
-// Preset Buttons
+// --- Presets -----------------------------------------------------------------
 const presetButtons = document.querySelectorAll('.seg-btn');
-presetButtons.forEach(btn => {
+
+function markActivePreset() {
+  presetButtons.forEach((b) => b.classList.toggle('active', b.dataset.shape === studio.opts.shape));
+  if (hudShape) hudShape.textContent = studio.opts.shape.toUpperCase();
+}
+
+presetButtons.forEach((btn) => {
   btn.addEventListener('click', () => {
-    presetButtons.forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    currentShape = btn.dataset.shape;
-    if (hudShape) hudShape.textContent = currentShape.toUpperCase();
-    studio.setShape(currentShape);
+    studio.setShape(btn.dataset.shape);
+    markActivePreset();
+    buildShapeParams();
     updateCodeSnippet();
   });
 });
 
-// Mechanical Sliders
-const sliderSpeed = document.getElementById('slider-speed');
-const speedVal = document.getElementById('speed-val');
+// --- Mechanical sliders ------------------------------------------------------
+const sliderSpeed = $('slider-speed');
+const speedVal = $('speed-val');
+const sliderFov = $('slider-fov');
+const fovVal = $('fov-val');
+const sliderRadius = $('slider-radius');
+const radiusVal = $('radius-val');
+
+function syncStaticSliders() {
+  const mult = studio.opts.speedX / baseSpeedX;
+  if (sliderSpeed) sliderSpeed.value = mult.toFixed(1);
+  if (speedVal) speedVal.textContent = `${mult.toFixed(1)}x`;
+  if (sliderFov) sliderFov.value = studio.opts.fov;
+  if (fovVal) fovVal.textContent = studio.opts.fov;
+  if (sliderRadius) sliderRadius.value = studio.opts.pointSize;
+  if (radiusVal) radiusVal.textContent = `${Number(studio.opts.pointSize).toFixed(1)}px`;
+}
+
 sliderSpeed?.addEventListener('input', (e) => {
-  speedMultiplier = parseFloat(e.target.value);
-  if (speedVal) speedVal.textContent = `${speedMultiplier.toFixed(1)}x`;
-  studio.updateOptions({
-    speedX: baseSpeedX * speedMultiplier,
-    speedY: baseSpeedY * speedMultiplier
-  });
+  const m = parseFloat(e.target.value);
+  if (speedVal) speedVal.textContent = `${m.toFixed(1)}x`;
+  studio.updateOptions({ speedX: baseSpeedX * m, speedY: baseSpeedY * m });
   updateCodeSnippet();
 });
 
-const sliderFov = document.getElementById('slider-fov');
-const fovVal = document.getElementById('fov-val');
 sliderFov?.addEventListener('input', (e) => {
-  currentFov = parseInt(e.target.value, 10);
-  if (fovVal) fovVal.textContent = currentFov;
-  studio.updateOptions({ fov: currentFov });
+  const v = parseInt(e.target.value, 10);
+  if (fovVal) fovVal.textContent = v;
+  studio.updateOptions({ fov: v });
   updateCodeSnippet();
 });
 
-const sliderRadius = document.getElementById('slider-radius');
-const radiusVal = document.getElementById('radius-val');
 sliderRadius?.addEventListener('input', (e) => {
-  currentRadius = parseFloat(e.target.value);
-  if (radiusVal) radiusVal.textContent = `${currentRadius.toFixed(1)}px`;
-  studio.updateOptions({ pointSize: currentRadius });
+  const v = parseFloat(e.target.value);
+  if (radiusVal) radiusVal.textContent = `${v.toFixed(1)}px`;
+  studio.updateOptions({ pointSize: v });
   updateCodeSnippet();
 });
 
-// Play / Pause Toggle
-const toggleBtn = document.getElementById('btn-toggle');
+// --- Play / Pause, Reset, Params reset, Seed, Share --------------------------
+const toggleBtn = $('btn-toggle');
 toggleBtn?.addEventListener('click', () => {
   studio.toggle();
   toggleBtn.textContent = studio.running ? 'Pause Engine' : 'Resume Engine';
-  if (hudFps) hudFps.textContent = studio.running ? '60 FPS' : 'PAUSED';
+  if (hudFps) hudFps.textContent = studio.running ? `${Math.round(studio.fps)} FPS` : 'PAUSED';
 });
 
-// Reset
-document.getElementById('btn-reset')?.addEventListener('click', () => {
-  speedMultiplier = 1.0;
-  currentFov = 360;
-  currentRadius = 2.2;
-  sliderSpeed.value = '1.0';
-  speedVal.textContent = '1.0x';
-  sliderFov.value = '360';
-  fovVal.textContent = '360';
-  sliderRadius.value = '2.2';
-  radiusVal.textContent = '2.2px';
+$('btn-reset')?.addEventListener('click', () => {
+  studio.resetShapeParams();
   studio.updateOptions({
+    ...ENGINE_DEFAULTS,
     speedX: baseSpeedX,
     speedY: baseSpeedY,
-    fov: currentFov,
-    pointSize: currentRadius
+    fov: DEFAULT_FOV,
+    pointSize: DEFAULT_RADIUS
   });
+  syncStaticSliders();
+  buildShapeParams();
+  buildEngineControls();
   updateCodeSnippet();
 });
+
+$('btn-reset-params')?.addEventListener('click', () => {
+  studio.resetShapeParams();
+  buildShapeParams();
+  updateCodeSnippet();
+});
+
+$('btn-randomize')?.addEventListener('click', () => {
+  studio.updateOptions({ seed: 1 + Math.floor(Math.random() * 9999) });
+  buildEngineControls();
+  updateCodeSnippet();
+});
+
+const shareBtn = $('btn-share');
+shareBtn?.addEventListener('click', async () => {
+  const hash = '#s=' + encodeURIComponent(JSON.stringify(studio.getState()));
+  const url = location.origin + location.pathname + hash;
+  try {
+    await navigator.clipboard.writeText(url);
+    history.replaceState(null, '', hash);
+    shareBtn.textContent = 'Link Copied';
+  } catch (err) {
+    shareBtn.textContent = 'Copy Failed';
+  }
+  setTimeout(() => { shareBtn.textContent = 'Copy Link'; }, 2000);
+});
+
+function loadFromHash() {
+  if (!location.hash.startsWith('#s=')) return;
+  try {
+    const state = JSON.parse(decodeURIComponent(location.hash.slice(3)));
+    studio.setState(state);
+  } catch (err) {
+    console.warn('[Orbs] Ignored invalid share link.', err);
+  }
+}
+
+loadFromHash();
+markActivePreset();
+syncStaticSliders();
+buildShapeParams();
+buildEngineControls();
+updateCodeSnippet();
 
 // ==========================================================================
 // 3. Real-World AI & Interaction Use Cases (Defensively Guarded)
 // ==========================================================================
 
 // Use Case A: AI Agent "Thinking" / Reasoning Loop
-const aiCard = document.getElementById('card-ai');
+const aiCard = $('card-ai');
 const aiMatrix = aiCard ? new DotMatrix('#card-ai', {
   shape: 'sphere',
   color: '240, 240, 240',
@@ -219,16 +421,15 @@ const aiMatrix = aiCard ? new DotMatrix('#card-ai', {
   interactive: false
 }) : null;
 
-const btnSimulateAI = document.getElementById('btn-simulate-ai');
-const aiStatusBadge = document.getElementById('ai-status-badge');
-const aiTokenStream = document.getElementById('ai-token-stream');
+const btnSimulateAI = $('btn-simulate-ai');
+const aiStatusBadge = $('ai-status-badge');
+const aiTokenStream = $('ai-token-stream');
 let isAIThinking = false;
 
 btnSimulateAI?.addEventListener('click', () => {
   if (!aiMatrix || isAIThinking) return;
   isAIThinking = true;
 
-  // Phase 1: High-Speed Vortex / Reasoning Loop
   aiStatusBadge.textContent = 'AI // REASONING...';
   aiStatusBadge.style.color = '#D71921';
   aiStatusBadge.style.borderColor = '#D71921';
@@ -246,16 +447,15 @@ btnSimulateAI?.addEventListener('click', () => {
   let tokens = 0;
   const tokenInterval = setInterval(() => {
     tokens += Math.floor(Math.random() * 18) + 12;
-    aiTokenStream.textContent = `INFERENCE &bull; ${tokens} TOKENS GENERATED`;
+    aiTokenStream.textContent = `INFERENCE \u2022 ${tokens} TOKENS GENERATED`;
   }, 120);
 
-  // Phase 2: Completed / Resolved State
   setTimeout(() => {
     clearInterval(tokenInterval);
     aiStatusBadge.textContent = 'AI // COMPLETE';
     aiStatusBadge.style.color = '#4A9E5C';
     aiStatusBadge.style.borderColor = '#4A9E5C';
-    aiTokenStream.textContent = `RESOLVED &bull; ${tokens} TOKENS IN 2.4s`;
+    aiTokenStream.textContent = `RESOLVED \u2022 ${tokens} TOKENS IN 2.4s`;
     btnSimulateAI.textContent = 'Simulate Prompt Again';
     btnSimulateAI.disabled = false;
     isAIThinking = false;
@@ -271,7 +471,7 @@ btnSimulateAI?.addEventListener('click', () => {
 });
 
 // Use Case B: Tactile Action Button Interaction
-const btnCard = document.getElementById('card-btn-action');
+const btnCard = $('card-btn-action');
 const btnMatrix = btnCard ? new DotMatrix('#card-btn-action', {
   shape: 'hollow-cube',
   color: '255, 255, 255',
@@ -281,8 +481,8 @@ const btnMatrix = btnCard ? new DotMatrix('#card-btn-action', {
   interactive: true
 }) : null;
 
-const actionBtn = document.getElementById('btn-interactive-trigger');
-const actionStatus = document.getElementById('btn-trigger-status');
+const actionBtn = $('btn-interactive-trigger');
+const actionStatus = $('btn-trigger-status');
 
 actionBtn?.addEventListener('click', () => {
   if (!btnMatrix) return;
@@ -303,13 +503,13 @@ actionBtn?.addEventListener('click', () => {
       speedY: 0.015,
       pointSize: 2.2
     });
-    actionStatus.textContent = 'IDLE &bull; READY';
+    actionStatus.textContent = 'IDLE \u2022 READY';
     actionStatus.style.color = '';
   }, 800);
 });
 
 // Use Case C: Voice / Audio Agent Visualizer
-const voiceCard = document.getElementById('card-voice');
+const voiceCard = $('card-voice');
 const voiceMatrix = voiceCard ? new DotMatrix('#card-voice', {
   shape: 'wave',
   color: '140, 210, 255',
@@ -319,9 +519,9 @@ const voiceMatrix = voiceCard ? new DotMatrix('#card-voice', {
   interactive: false
 }) : null;
 
-const toggleVoiceBtn = document.getElementById('btn-toggle-voice');
-const voiceBadge = document.getElementById('voice-badge');
-const voiceStatus = document.getElementById('voice-status');
+const toggleVoiceBtn = $('btn-toggle-voice');
+const voiceBadge = $('voice-badge');
+const voiceStatus = $('voice-status');
 let isSpeaking = false;
 
 toggleVoiceBtn?.addEventListener('click', () => {

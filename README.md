@@ -5,7 +5,7 @@
 [![Live Website](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-white.svg?style=flat-square)](https://umerhammaz.github.io/Orbs-by-Umer-Hamaaz/)
 [![Live Website](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-white.svg?style=flat-square)](https://umerhammaz.github.io/Orbs-by-Umer-Hamaaz/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-black.svg?style=flat-square)](LICENSE)
-[![Bundle Size](https://img.shields.io/badge/Size-%3C6.2KB%20Gzipped-black.svg?style=flat-square)](src/dot-matrix.js)
+[![Bundle Size](https://img.shields.io/badge/Size-%3C15KB-black.svg?style=flat-square)](src/dot-matrix.js)
 [![Dependencies](https://img.shields.io/badge/Dependencies-Zero-black.svg?style=flat-square)](package.json)
 
 **Live Playground:** [https://umerhammaz.github.io/Orbs-by-Umer-Hamaaz/](https://umerhammaz.github.io/Orbs-by-Umer-Hamaaz/)
@@ -78,7 +78,35 @@ matrix.destroy();
 
 ---
 
-## 4. MATHEMATICAL PRESETS
+### Parametric Shapes, Seeds & State
+
+Every shape is a registry entry in `src/shapes.js` with a parameter schema (`type`, `min`, `max`, `step`, `def`, optional `live`). Geometry is deterministic: the same `seed` always produces the same points, including after a resize.
+
+```javascript
+const matrix = new DotMatrix('#container', {
+  shape: 'torus',
+  seed: 42,                 // Deterministic random shapes (galaxy, chaos, neural, blackhole)
+  density: 1.5,             // Scales point-count parameters
+  speedZ: 0.004,            // Roll speed (rad per 1/60 s)
+  zoom: 1.2,
+  projection: 'perspective', // 'perspective' | 'orthographic'
+  colorMode: 'depth',       // 'solid' | 'depth' | 'height'
+  color: '255, 255, 255',
+  color2: '90, 90, 90',
+  depthFade: 1,             // 0 = no fade, 1 = full depth fade
+  sizeByDepth: 1,
+  depthSort: false,         // Back-to-front draw order
+  inertia: 0.92,            // Drag momentum (0 = off)
+  lockAxis: 'none',         // 'none' | 'x' | 'y'
+  shapeParams: { torus: { major: 1, minor: 0.3, twist: 1 } }
+});
+
+DotMatrix.shapes;                 // ['cube', 'sphere', ...]
+DotMatrix.getSchema('torus');     // Parameter schema (drives the playground UI)
+matrix.setShapeParam('minor', 0.4);
+matrix.resetShapeParams();
+const state = matrix.getState();  // Plain JSON, non-default shape params only
+matrix.setState(state);
 
 | Index | Identifier | Geometry | Points Formula | Best Use Case |
 |---|---|---|---|---|
