@@ -1,113 +1,162 @@
-# DotMatrix 3D
+# NOTHING (R) // DOTMATRIX_3D
 
-A lightweight (under 6KB, zero dependencies), mathematically projected 3D point-matrix canvas engine. Designed to be dropped into any web container, button, modal, or hero background with silky 60 FPS performance.
+> Minimalist, hardware-accelerated 3D volumetric point-lattice canvas engine. Built in compliance with the Nothing Design System guidelines (monochromatic hierarchy, OLED black contrast, zero-shadow precision, instrument telemetry).
 
-## Why this exists instead of CSS 3D or Three.js
-- **Not pure CSS:** Rendering 800+ DOM nodes with `transform-style: preserve-3d` causes browser layout thrashing and drops frames.
-- **Not Three.js:** Avoids downloading a 600KB bundle just to draw a clean rotating dot lattice.
-- **The Sweet Spot:** Uses pure 2D `<canvas>` perspective projection (`x / z`, `y / z`) with hardware acceleration and trail fading.
+[![License: MIT](https://img.shields.io/badge/License-MIT-black.svg?style=flat-square)](LICENSE)
+[![Bundle Size](https://img.shields.io/badge/Size-%3C6.2KB%20Gzipped-black.svg?style=flat-square)](src/dot-matrix.js)
+[![Dependencies](https://img.shields.io/badge/Dependencies-Zero-black.svg?style=flat-square)](package.json)
 
 ---
 
-## Quickstart
+## 1. DESIGN SPECIFICATION
+
+This engine rejects bloated 3D web frameworks in favor of mechanical honesty:
+- **No Three.js (600KB+):** Eliminates massive runtime bundles for simple geometric point clouds.
+- **No CSS 3D Layout Thrashing:** Bypasses 1,000+ DOM `<div>` nodes that choke browser paint passes.
+- **Direct 3D $\to$ 2D Projection:** Mathematical isometric/perspective camera transforms executed on a single hardware-accelerated `<canvas>`.
+- **Nothing Typography & Tokens:** Designed around `Doto` (dot-matrix display), `Space Grotesk` (technical body), and `Space Mono` (instrument readouts).
+
+---
+
+## 2. QUICKSTART
+
+Run locally with zero build overhead:
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-username/dot-matrix-3d.git
-cd dot-matrix-3d
+git clone https://github.com/umerhammaz/Orbs-by-Umer-Hamaaz.git
+cd Orbs-by-Umer-Hamaaz
 
-# Run dev server
 npm install
 npm run dev
 ```
 
-*Note: You don't even need npm. You can double-click `index.html` directly or serve via any static server.*
+*Or simply open `index.html` in any modern browser directly.*
 
 ---
 
-## Direct Usage
+## 3. ENGINE API
 
-Copy `src/dot-matrix.js` straight into your project:
-
+### Instantiation
 ```javascript
 import DotMatrix from './src/dot-matrix.js';
 
-const matrix = new DotMatrix('#my-container', {
-  shape: 'wave',           // 'cube' | 'sphere' | 'hollow-cube' | 'torus' | 'breathing-cube' | 'helix' | 'wave' | 'galaxy' | 'cylinder' | 'chaos'
-  color: '100, 200, 255',  // RGB string
-  speedX: 0.003,           // X rotation velocity
-  speedY: 0.006,           // Y rotation velocity
-  trail: 0.25,             // Motion blur opacity (0.1 = heavy trail, 1 = no trail)
-  interactive: true        // Pointer drag rotation
-});
-```
-
----
-
-## API Reference
-
-### Configuration Options
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `shape` | `string` | `'cube'` | Initial 3D geometry |
-| `color` | `string` | `'255, 255, 255'` | Point color formatted as `'R, G, B'` |
-| `trail` | `number` | `0.25` | Canvas clear opacity (motion blur) |
-| `speedX` | `number` | `0.012` | Automatic X-axis spin speed |
-| `speedY` | `number` | `0.018` | Automatic Y-axis spin speed |
-| `fov` | `number` | `360` | Field of view / perspective depth |
-| `interactive` | `boolean` | `true` | Allows click & drag to tilt in 3D |
-| `autoStart` | `boolean` | `true` | Start rendering loop immediately |
-| `pointSize` | `number` | `2.2` | Base dot radius in pixels |
-
-### Methods
-- `matrix.setShape('sphere')` — Switches geometry at runtime.
-- `matrix.start()` — Starts animation loop.
-- `matrix.stop()` — Pauses loop (conserves battery when element is hidden).
-- `matrix.toggle()` — Toggles pause/play state.
-- `matrix.destroy()` — Removes canvas, disconnects `ResizeObserver`, stops RAF.
-
----
-
-## Integration Recipes
-
-### 1. Button Trigger / Modal
-```javascript
-let fx = null;
-
-button.addEventListener('click', () => {
-  modal.classList.add('visible');
-  if (!fx) {
-    fx = new DotMatrix('#modal-stage', { shape: 'sphere' });
-  } else {
-    fx.start();
+const matrix = new DotMatrix('#container', {
+  shape: 'sphere',          // Presets: 'cube' | 'sphere' | 'hollow-cube' | 'torus' | 'breathing-cube' | 'helix' | 'wave' | 'galaxy' | 'cylinder' | 'chaos'
+  color: '255, 255, 255',   // RGB format
+  speedX: 0.012,            // X-axis angular velocity
+  speedY: 0.018,            // Y-axis angular velocity
+  fov: 360,                 // Perspective focal depth
+  pointSize: 2.2,           // Base dot radius in pixels
+  trail: 0.25,              // Motion trail persistence (0.1 = heavy trail, 1 = crisp)
+  interactive: true,        // Pointer drag tilt
+  onFrame: (telemetry) => {
+    console.log(telemetry.points, telemetry.ax, telemetry.ay);
   }
 });
-
-closeButton.addEventListener('click', () => {
-  modal.classList.remove('visible');
-  if (fx) fx.stop(); // Stop loop while hidden
-});
 ```
 
-### 2. React Hook
-```jsx
+### Controls & Lifecycle
+```javascript
+// Switch shape dynamically
+matrix.setShape('galaxy');
+
+// Update knobs in real-time
+matrix.updateOptions({ speedX: 0.004, pointSize: 3.0 });
+
+// Battery saver loop management
+matrix.stop();   // Pauses requestAnimationFrame
+matrix.start();  // Resumes animation
+matrix.toggle(); // Toggles play/pause state
+
+// Clean unmount (disconnects ResizeObserver, destroys canvas)
+matrix.destroy();
+```
+
+---
+
+## 4. MATHEMATICAL PRESETS
+
+| Index | Identifier | Geometry | Points Formula | Best Use Case |
+|---|---|---|---|---|
+| `01` | `cube` | 3D Voxel Lattice | $N \times N \times N$ discrete grid | Default instrument box |
+| `02` | `sphere` | Fibonacci Orb | Golden spiral spherical distribution | Core biometric sensor / HUD |
+| `03` | `hollow-cube` | Wireframe Box | Surface boundary points only | Transparent boundary cage |
+| `04` | `torus` | Particle Donut | Double-angle parametric torus | Dial / gauge compass |
+| `05` | `breathing-cube`| Pulsing Lattice | Radial sine oscillation | Audio beat / heart rate sim |
+| `06` | `helix` | Double Spiral | Interleaved phase strands | Diagnostic telemetry / DNA |
+| `07` | `wave` | Liquid Oscilloscope | Radial distance wave $z = \sin(r - t)$ | Hero banner / section footer |
+| `08` | `galaxy` | Logarithmic Vortex | Multi-arm spiral dispersion | Loading / processing state |
+| `09` | `cylinder` | Particle Tunnel | Circular ring array along Z-axis | Data stream / bandwidth pipe |
+| `10` | `chaos` | Entropy Field | Uniform random 3D space distribution | Noise / glitch / particle cloud |
+
+---
+
+## 5. INTEGRATION RECIPES
+
+### React / Next.js
+```tsx
 import { useEffect, useRef } from 'react';
 import DotMatrix from './dot-matrix.js';
 
-export function MatrixCanvas({ shape = 'wave' }) {
-  const containerRef = useRef(null);
-  const matrixRef = useRef(null);
+export function NothingMatrix({ shape = 'sphere' }: { shape?: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const engineRef = useRef<DotMatrix | null>(null);
 
   useEffect(() => {
-    matrixRef.current = new DotMatrix(containerRef.current, { shape });
-    return () => matrixRef.current.destroy();
+    if (!containerRef.current) return;
+    engineRef.current = new DotMatrix(containerRef.current, {
+      shape,
+      color: '255, 255, 255',
+      interactive: true
+    });
+
+    return () => engineRef.current?.destroy();
   }, [shape]);
 
-  return <div ref={containerRef} style={{ width: '100%', height: '400px' }} />;
+  return <div ref={containerRef} style={{ width: '100%', height: '320px', background: '#000' }} />;
 }
+```
+
+### Vue 3
+```vue
+<script setup>
+import { onMounted, onUnmounted, ref } from 'vue';
+import DotMatrix from './dot-matrix.js';
+
+const stage = ref(null);
+let engine = null;
+
+onMounted(() => {
+  engine = new DotMatrix(stage.value, { shape: 'wave' });
+});
+
+onUnmounted(() => {
+  engine?.destroy();
+});
+</script>
+
+<template>
+  <div ref="stage" class="matrix-viewport" />
+</template>
+
+<style scoped>
+.matrix-viewport {
+  width: 100%;
+  height: 280px;
+  background: #000;
+}
+</style>
 ```
 
 ---
 
-## License
-MIT. Free to use anywhere.
+## 6. TELEMETRY & DESIGN AUDIT
+
+- **OLED Surface:** Background `#000000`, card surfaces `#111111`, hairline structural dividers `#222222`.
+- **Status Indicator:** Single `#D71921` signal dot reserved exclusively for real-time state interrupt (`[REC ● LIVE]`).
+- **Typography Budget:** Exactly 3 typeface families loaded (`Doto`, `Space Grotesk`, `Space Mono`) adhering to the Nothing Three-Layer hierarchy rule.
+
+---
+
+## LICENSE
+MIT &mdash; Free for commercial and non-commercial application.

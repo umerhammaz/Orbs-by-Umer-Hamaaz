@@ -17,7 +17,8 @@ export default class DotMatrix {
       interactive: options.interactive ?? true,
       autoStart: options.autoStart ?? true,
       pointSize: options.pointSize ?? 2.2,
-      density: options.density ?? 1
+      density: options.density ?? 1,
+      onFrame: options.onFrame || null
     };
 
     this.canvas = document.createElement('canvas');
@@ -82,6 +83,13 @@ export default class DotMatrix {
     window.addEventListener('pointerup', () => {
       this.mouse.isDown = false;
     });
+  }
+
+  updateOptions(newOpts = {}) {
+    Object.assign(this.opts, newOpts);
+    if (newOpts.density !== undefined || newOpts.shape !== undefined) {
+      this.setShape(newOpts.shape || this.opts.shape);
+    }
   }
 
   setShape(name) {
@@ -307,6 +315,15 @@ export default class DotMatrix {
       ctx.arc(px, py, radius, 0, Math.PI * 2);
       ctx.fillStyle = `rgba(${opts.color}, ${alpha})`;
       ctx.fill();
+    }
+
+    if (this.opts.onFrame) {
+      this.opts.onFrame({
+        points: this.points.length,
+        ax: this.ax,
+        ay: this.ay,
+        t: this.t
+      });
     }
 
     this.raf = requestAnimationFrame(() => this.loop());
