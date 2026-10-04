@@ -42,7 +42,16 @@ const ENGINE_DEFAULTS = {
   color: '255, 255, 255',
   color2: '90, 90, 90',
   depthSort: false,
-  seed: 1337
+  seed: 1337,
+  view: 'free',
+  viewX: 0,
+  viewY: 0,
+  viewZ: 0,
+  panX: 0,
+  panY: 0,
+  motion: 'spin',
+  swing: 0.6,
+  dolly: 0
 };
 
 const CAMERA_CONTROLS = [
@@ -50,7 +59,16 @@ const CAMERA_CONTROLS = [
   { key: 'zoom', label: 'Zoom', type: 'number', min: 0.4, max: 2.5, step: 0.05 },
   { key: 'projection', label: 'Projection', type: 'enum', options: ['perspective', 'orthographic'] },
   { key: 'inertia', label: 'Drag Inertia', type: 'number', min: 0, max: 0.98, step: 0.02 },
-  { key: 'lockAxis', label: 'Lock Drag Axis', type: 'enum', options: ['none', 'x', 'y'] }
+  { key: 'lockAxis', label: 'Lock Drag Axis', type: 'enum', options: ['none', 'x', 'y'] },
+  { key: 'view', label: 'View Angle', type: 'enum', options: ['free', 'front', 'back', 'top', 'side', 'iso', 'high', 'low', 'dutch'] },
+  { key: 'motion', label: 'Camera Motion', type: 'enum', options: ['spin', 'sway', 'still'] },
+  { key: 'swing', label: 'Sway Amount', type: 'number', min: 0, max: 1.5, step: 0.05 },
+  { key: 'viewX', label: 'Tilt (Pitch)', type: 'number', min: -3.14, max: 3.14, step: 0.05 },
+  { key: 'viewY', label: 'Turn (Yaw)', type: 'number', min: -3.14, max: 3.14, step: 0.05 },
+  { key: 'viewZ', label: 'Roll', type: 'number', min: -3.14, max: 3.14, step: 0.05 },
+  { key: 'panX', label: 'Pan X', type: 'number', min: -0.6, max: 0.6, step: 0.02 },
+  { key: 'panY', label: 'Pan Y', type: 'number', min: -0.6, max: 0.6, step: 0.02 },
+  { key: 'dolly', label: 'Dolly Pulse', type: 'number', min: 0, max: 0.5, step: 0.02 }
 ];
 
 const RENDER_CONTROLS = [
@@ -173,6 +191,33 @@ function makeControl(spec) {
     });
     row.appendChild(input);
   }
+
+  if (spec.def !== undefined) {
+    const btn = el('button', 'row-reset', '\u21BA');
+    btn.type = 'button';
+    btn.title = 'Reset to default';
+    btn.addEventListener('click', () => {
+      const inp = row.lastElementChild;
+      const d = spec.def;
+      if (inp.type === 'checkbox') {
+        inp.checked = !!d;
+        inp.dispatchEvent(new Event('change'));
+      } else if (inp.type === 'color') {
+        inp.value = rgbToHex(d);
+        inp.dispatchEvent(new Event('input'));
+      } else if (inp.tagName === 'SELECT') {
+        inp.value = d;
+        inp.dispatchEvent(new Event('change'));
+      } else if (inp.type === 'range') {
+        inp.value = d;
+        inp.dispatchEvent(new Event('input'));
+      } else {
+        inp.value = d;
+        inp.dispatchEvent(new Event('change'));
+      }
+    });
+    head.appendChild(btn);
+  }
   return row;
 }
 
@@ -203,6 +248,7 @@ function buildEngineControls() {
     for (const c of list) {
       box.appendChild(makeControl({
         ...c,
+        def: ENGINE_DEFAULTS[c.key],
         value: studio.opts[c.key],
         onInput: (v) => {
           studio.updateOptions({ [c.key]: v });
@@ -237,7 +283,16 @@ const EXPORT_DEFAULTS = {
   depthSort: false,
   inertia: 0,
   lockAxis: 'none',
-  interactive: true
+  interactive: true,
+  view: 'free',
+  viewX: 0,
+  viewY: 0,
+  viewZ: 0,
+  panX: 0,
+  panY: 0,
+  motion: 'spin',
+  swing: 0.6,
+  dolly: 0
 };
 
 function literal(value, depth = 0) {
@@ -389,6 +444,23 @@ sliderRadius?.addEventListener('input', (e) => {
   if (radiusVal) radiusVal.textContent = `${v.toFixed(1)}px`;
   studio.updateOptions({ pointSize: v });
   updateCodeSnippet();
+});
+
+[
+  [sliderSpeed, 1.0],
+  [sliderFov, DEFAULT_FOV],
+  [sliderRadius, DEFAULT_RADIUS]
+].forEach(([input, def]) => {
+  const head = input && input.closest('.slider-row') && input.closest('.slider-row').querySelector('.slider-header');
+  if (!head) return;
+  const btn = el('button', 'row-reset', '\u21BA');
+  btn.type = 'button';
+  btn.title = 'Reset to default';
+  btn.addEventListener('click', () => {
+    input.value = def;
+    input.dispatchEvent(new Event('input'));
+  });
+  head.appendChild(btn);
 });
 
 // --- Play / Pause, Reset, Params reset, Seed, Share --------------------------

@@ -24,8 +24,22 @@ const ALPHA_BUCKETS = 16;
 const STATE_KEYS = [
   'shape', 'color', 'color2', 'colorMode', 'trail', 'speedX', 'speedY', 'speedZ', 'fov',
   'pointSize', 'density', 'seed', 'projection', 'zoom', 'depthFade', 'sizeByDepth',
-  'depthSort', 'inertia', 'lockAxis', 'interactive'
+  'depthSort', 'inertia', 'lockAxis', 'interactive',
+  'view', 'viewX', 'viewY', 'viewZ', 'panX', 'panY', 'motion', 'swing', 'dolly'
 ];
+
+// Camera presets: [pitch, yaw, roll] in radians
+const VIEWS = {
+  free: [0, 0, 0],
+  front: [0, 0, 0],
+  back: [0, Math.PI, 0],
+  top: [Math.PI / 2, 0, 0],
+  side: [0, Math.PI / 2, 0],
+  iso: [0.6155, Math.PI / 4, 0],
+  high: [0.8, 0.3, 0],
+  low: [-0.5, 0.3, 0],
+  dutch: [0.35, 0.5, 0.45]
+};
 
 export default class DotMatrix {
   static get shapes() {
@@ -67,6 +81,15 @@ export default class DotMatrix {
       inertia: options.inertia ?? 0,
       lockAxis: options.lockAxis || 'none',
       wheelZoom: options.wheelZoom ?? false,
+      view: options.view || 'free',
+      viewX: options.viewX ?? 0,
+      viewY: options.viewY ?? 0,
+      viewZ: options.viewZ ?? 0,
+      panX: options.panX ?? 0,
+      panY: options.panY ?? 0,
+      motion: options.motion || 'spin',
+      swing: options.swing ?? 0.6,
+      dolly: options.dolly ?? 0,
       onFrame: options.onFrame || null
     };
 
@@ -176,10 +199,21 @@ export default class DotMatrix {
     const { shapeParams, shape, ...rest } = newOpts;
     const prevDensity = this.opts.density;
     const prevSeed = this.opts.seed;
+    const prevMotion = this.opts.motion;
+    const prevView = this.opts.view;
 
     if (rest.density !== undefined) rest.density = clamp(Number(rest.density) || 1, 0.1, 4);
     Object.assign(this.opts, rest);
     this._syncColors();
+
+    if ((rest.motion !== undefined && rest.motion !== prevMotion) ||
+        (rest.view !== undefined && rest.view !== prevView)) {
+      this.ax = 0;
+      this.ay = 0;
+      this.az = 0;
+      this.spinX = 0;
+      this.spinY = 0;
+    }
 
     if (shapeParams) {
       for (const [name, vals] of Object.entries(shapeParams)) {
@@ -277,20 +311,33 @@ export default class DotMatrix {
     if (this.def && this.def.update) this.def.update(this.sc, this.P, this.points, this.t, dtf);
 
     if (!this.mouse.isDown) {
-      this.ax += (opts.speedX + this.spinX) * dtf;
-      this.ay += (opts.speedY + this.spinY) * dtf;
-      this.az += opts.speedZ * dtf;
+      const auto = opts.motion === 'spin';
+      this.ax += ((auto ? opts.speedX : 0) + this.spinX) * dtf;
+      this.ay += ((auto ? opts.speedY : 0) + this.spinY) * dtf;
+      this.az += (auto ? opts.speedZ : 0) * dtf;
       const decay = Math.pow(opts.inertia, dtf);
       this.spinX *= decay;
       this.spinY *= decay;
     }
 
-    const cosX = Math.cos(this.ax), sinX = Math.sin(this.ax);
-    const cosY = Math.cos(this.ay), sinY = Math.sin(this.ay);
-    const cosZ = Math.cos(this.az), sinZ = Math.sin(this.az);
+    const vw = VIEWS[opts.view] || VIEWS.free;
+    let swX = 0, swY = 0;
+    if (opts.motion === 'sway') {
+      const ph = this.t * opts.speedY;
+      swY = Math.sin(ph) * opts.swing;
+      swX = Math.sin(ph * 0.7 + 1) * opts.swing * 0.5;
+    }
+    const aX = this.ax + vw[0] + opts.viewX + swX;
+    const aY = this.ay + vw[1] + opts.viewY + swY;
+    const aZ = this.az + vw[2] + opts.viewZ;
+    const cosX = Math.cos(aX), sinX = Math.sin(aX);
+    const cosY = Math.cos(aY), sinY = Math.sin(aY);
+    const cosZ = Math.cos(aZ), sinZ = Math.sin(aZ);
     const ortho = opts.projection === 'orthographic';
-    const zoom = opts.zoom;
+    const zoom = opts.zoom * (1 + opts.dolly * Math.sin(this.t * 0.03));
     const zoomR = Math.sqrt(zoom);
+    const panX = opts.panX * size;
+    const panY = opts.panY * size;
     const fov = opts.fov;
     const pool = this._pool;
     let n = 0;
@@ -306,8 +353,8 @@ export default class DotMatrix {
       const s = ortho ? 1 : fov / (fov + z2 + size * 0.4);
       const nn = clamp((z2 + size * 0.32) / (size * 0.64), 0, 1);
       const o = pool[n] || (pool[n] = {});
-      o.px = w / 2 + x3 * s * zoom;
-      o.py = h / 2 + y3 * s * zoom;
+      o.px = w / 2 + panX + x3 * s * zoom;
+      o.py = h / 2 + panY + y3 * s * zoom;
       o.r = Math.max(0.4, opts.pointSize * (1 + (s - 1) * opts.sizeByDepth) * zoomR);
       o.a = clamp(1 - opts.depthFade * (1 - nn), 0.12, 1);
       o.z = z2;
