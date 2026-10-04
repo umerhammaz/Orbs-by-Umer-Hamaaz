@@ -235,6 +235,31 @@ export default class DotMatrix {
         break;
       }
 
+      case 'rubik': {
+        pts.push(...this.initRubik(r));
+        break;
+      }
+
+      case 'tesseract': {
+        pts.push(...this.initTesseract(r));
+        break;
+      }
+
+      case 'blackhole': {
+        pts.push(...this.initBlackhole(r));
+        break;
+      }
+
+      case 'gyroid': {
+        pts.push(...this.initGyroid(r));
+        break;
+      }
+
+      case 'neural': {
+        pts.push(...this.initNeural(r));
+        break;
+      }
+
       case 'cube':
       default: {
         const N = 9;
@@ -288,6 +313,16 @@ export default class DotMatrix {
         p.y = p.by * scale;
         p.z = p.bz * scale;
       }
+    } else if (opts.shape === 'rubik') {
+      this.updateRubik();
+    } else if (opts.shape === 'tesseract') {
+      this.updateTesseract(size * 0.28);
+    } else if (opts.shape === 'blackhole') {
+      this.updateBlackhole(size * 0.28);
+    } else if (opts.shape === 'gyroid') {
+      this.updateGyroid(size * 0.28);
+    } else if (opts.shape === 'neural') {
+      this.updateNeural();
     }
 
     if (!this.mouse.isDown) {
@@ -327,6 +362,284 @@ export default class DotMatrix {
     }
 
     this.raf = requestAnimationFrame(() => this.loop());
+  }
+
+  // --- Dynamic Shape Generators & Updaters ---
+
+  initRubik(r) {
+    const pts = [];
+    const cubieSize = r * 0.52;
+    this.rubikSpacing = cubieSize + 4;
+    this.rubik = { axis: 1, slice: 1, progress: 0, dir: 1 };
+
+    for (let cx = -1; cx <= 1; cx++) {
+      for (let cy = -1; cy <= 1; cy++) {
+        for (let cz = -1; cz <= 1; cz++) {
+          for (let lx = -1; lx <= 1; lx++) {
+            for (let ly = -1; ly <= 1; ly++) {
+              for (let lz = -1; lz <= 1; lz++) {
+                if (Math.abs(lx) === 1 || Math.abs(ly) === 1 || Math.abs(lz) === 1) {
+                  pts.push({
+                    cx, cy, cz,
+                    lx: lx * (cubieSize * 0.38),
+                    ly: ly * (cubieSize * 0.38),
+                    lz: lz * (cubieSize * 0.38),
+                    x: 0, y: 0, z: 0
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    return pts;
+  }
+
+  updateRubik() {
+    this.rubik.progress += 0.035;
+    const { axis, slice, dir, progress } = this.rubik;
+    const step = this.rubikSpacing;
+    const theta = Math.sin(Math.min(progress, 1) * (Math.PI / 2)) * (Math.PI / 2) * dir;
+    const cosT = Math.cos(theta), sinT = Math.sin(theta);
+
+    for (const p of this.points) {
+      const isTarget = (axis === 0 && p.cx === slice) ||
+                       (axis === 1 && p.cy === slice) ||
+                       (axis === 2 && p.cz === slice);
+
+      let px = p.cx * step + p.lx;
+      let py = p.cy * step + p.ly;
+      let pz = p.cz * step + p.lz;
+
+      if (isTarget) {
+        if (axis === 0) {
+          const y1 = py * cosT - pz * sinT;
+          const z1 = py * sinT + pz * cosT;
+          py = y1; pz = z1;
+        } else if (axis === 1) {
+          const x1 = px * cosT + pz * sinT;
+          const z1 = -px * sinT + pz * cosT;
+          px = x1; pz = z1;
+        } else {
+          const x1 = px * cosT - py * sinT;
+          const y1 = px * sinT + py * cosT;
+          px = x1; py = y1;
+        }
+      }
+
+      p.x = px; p.y = py; p.z = pz;
+    }
+
+    if (this.rubik.progress >= 1) {
+      for (const p of this.points) {
+        const isTarget = (axis === 0 && p.cx === slice) ||
+                         (axis === 1 && p.cy === slice) ||
+                         (axis === 2 && p.cz === slice);
+        if (isTarget) {
+          if (axis === 0) {
+            const ncy = dir === 1 ? -p.cz : p.cz;
+            const ncz = dir === 1 ? p.cy : -p.cy;
+            const nly = dir === 1 ? -p.lz : p.lz;
+            const nlz = dir === 1 ? p.ly : -p.ly;
+            p.cy = ncy; p.cz = ncz; p.ly = nly; p.lz = nlz;
+          } else if (axis === 1) {
+            const ncx = dir === 1 ? p.cz : -p.cz;
+            const ncz = dir === 1 ? -p.cx : p.cx;
+            const nlx = dir === 1 ? p.lz : -p.lz;
+            const nlz = dir === 1 ? -p.lx : p.lx;
+            p.cx = ncx; p.cz = ncz; p.lx = nlx; p.lz = nlz;
+          } else {
+            const ncx = dir === 1 ? -p.cy : p.cy;
+            const ncy = dir === 1 ? p.cx : -p.cx;
+            const nlx = dir === 1 ? -p.ly : p.ly;
+            const nly = dir === 1 ? p.lx : -p.lx;
+            p.cx = ncx; p.cy = ncy; p.lx = nlx; p.ly = nly;
+          }
+        }
+      }
+      this.rubik.progress = 0;
+      this.rubik.axis = Math.floor(Math.random() * 3);
+      this.rubik.slice = Math.random() > 0.5 ? 1 : -1;
+      this.rubik.dir = Math.random() > 0.5 ? 1 : -1;
+    }
+  }
+
+  initTesseract() {
+    const pts = [];
+    const verts = [];
+    for (let i = 0; i < 16; i++) {
+      verts.push({
+        x: (i & 1 ? 1 : -1),
+        y: (i & 2 ? 1 : -1),
+        z: (i & 4 ? 1 : -1),
+        w: (i & 8 ? 1 : -1)
+      });
+    }
+
+    const steps = 12;
+    for (let i = 0; i < 16; i++) {
+      for (let j = i + 1; j < 16; j++) {
+        const diff = (verts[i].x !== verts[j].x ? 1 : 0) +
+                     (verts[i].y !== verts[j].y ? 1 : 0) +
+                     (verts[i].z !== verts[j].z ? 1 : 0) +
+                     (verts[i].w !== verts[j].w ? 1 : 0);
+        if (diff === 1) {
+          for (let s = 0; s <= steps; s++) {
+            const f = s / steps;
+            pts.push({
+              x4: verts[i].x + (verts[j].x - verts[i].x) * f,
+              y4: verts[i].y + (verts[j].y - verts[i].y) * f,
+              z4: verts[i].z + (verts[j].z - verts[i].z) * f,
+              w4: verts[i].w + (verts[j].w - verts[i].w) * f,
+              x: 0, y: 0, z: 0
+            });
+          }
+        }
+      }
+    }
+    return pts;
+  }
+
+  updateTesseract(r) {
+    const a = this.t * 0.02;
+    const b = this.t * 0.015;
+    const cosA = Math.cos(a), sinA = Math.sin(a);
+    const cosB = Math.cos(b), sinB = Math.sin(b);
+
+    for (const p of this.points) {
+      const x1 = p.x4 * cosA - p.w4 * sinA;
+      const w1 = p.x4 * sinA + p.w4 * cosA;
+      const z1 = p.z4 * cosB - w1 * sinB;
+      const w2 = p.z4 * sinB + w1 * cosB;
+
+      const d4 = 2.4;
+      const proj = 1 / (d4 - w2);
+      p.x = x1 * proj * r * 1.8;
+      p.y = p.y4 * proj * r * 1.8;
+      p.z = z1 * proj * r * 1.8;
+    }
+  }
+
+  initBlackhole(r) {
+    const pts = [];
+    const count = 550;
+    for (let i = 0; i < count; i++) {
+      const rad = r * 0.42 + Math.pow(Math.random(), 1.6) * r * 1.1;
+      const angle = Math.random() * Math.PI * 2;
+      pts.push({
+        rad,
+        angle,
+        speed: (0.018 + 0.035 * (1 - rad / (r * 1.5))),
+        lensSide: Math.random() > 0.5 ? 1 : -1,
+        x: 0, y: 0, z: 0
+      });
+    }
+    return pts;
+  }
+
+  updateBlackhole(r) {
+    for (const p of this.points) {
+      p.angle += p.speed;
+      const px = Math.cos(p.angle) * p.rad;
+      const pz = Math.sin(p.angle) * p.rad;
+      let py = 0;
+
+      if (pz < 0 && Math.abs(px) < r * 0.95) {
+        const factor = (1 - Math.abs(px) / (r * 0.95)) * (-pz / p.rad);
+        py = factor * r * 0.65 * p.lensSide;
+      }
+      p.x = px; p.y = py; p.z = pz;
+    }
+  }
+
+  initGyroid(r) {
+    const pts = [];
+    const res = 14;
+    const scale = Math.PI * 1.3;
+    for (let x = -res; x <= res; x++) {
+      for (let y = -res; y <= res; y++) {
+        for (let z = -res; z <= res; z++) {
+          const u = (x / res) * scale;
+          const v = (y / res) * scale;
+          const w = (z / res) * scale;
+          const val = Math.sin(u) * Math.cos(v) + Math.sin(v) * Math.cos(w) + Math.sin(w) * Math.cos(u);
+          if (Math.abs(val) < 0.16) {
+            pts.push({
+              u, v, w,
+              baseX: (x / res) * r,
+              baseY: (y / res) * r,
+              baseZ: (z / res) * r,
+              x: (x / res) * r,
+              y: (y / res) * r,
+              z: (z / res) * r
+            });
+          }
+        }
+      }
+    }
+    return pts;
+  }
+
+  updateGyroid(r) {
+    const time = this.t * 0.04;
+    for (const p of this.points) {
+      const pulse = 1 + Math.sin(p.u * 2 + time) * 0.08;
+      p.x = p.baseX * pulse;
+      p.y = p.baseY * pulse;
+      p.z = p.baseZ * pulse;
+    }
+  }
+
+  initNeural(r) {
+    const pts = [];
+    const layers = [
+      [{ y: -r * 0.6, z: 0 }, { y: 0, z: 0 }, { y: r * 0.6, z: 0 }],
+      [{ y: -r * 0.7, z: -r * 0.3 }, { y: -r * 0.3, z: r * 0.3 }, { y: 0, z: 0 }, { y: r * 0.3, z: -r * 0.3 }, { y: r * 0.7, z: r * 0.3 }],
+      [{ y: -r * 0.6, z: r * 0.3 }, { y: -r * 0.2, z: -r * 0.3 }, { y: r * 0.2, z: r * 0.3 }, { y: r * 0.6, z: -r * 0.3 }],
+      [{ y: -r * 0.4, z: 0 }, { y: r * 0.4, z: 0 }]
+    ];
+
+    const layerX = [-r * 0.9, -r * 0.3, r * 0.3, r * 0.9];
+    this.neuralPulses = [];
+
+    for (let l = 0; l < layers.length - 1; l++) {
+      const curL = layers[l];
+      const nextL = layers[l + 1];
+      for (const n1 of curL) {
+        for (const n2 of nextL) {
+          const segs = 10;
+          for (let s = 0; s <= segs; s++) {
+            const f = s / segs;
+            pts.push({
+              x: layerX[l] + (layerX[l + 1] - layerX[l]) * f,
+              y: n1.y + (n2.y - n1.y) * f,
+              z: n1.z + (n2.z - n1.z) * f
+            });
+          }
+        }
+      }
+    }
+
+    for (let p = 0; p < 25; p++) {
+      this.neuralPulses.push({
+        idx: Math.floor(Math.random() * pts.length),
+        speed: Math.floor(Math.random() * 3) + 2
+      });
+    }
+
+    return pts;
+  }
+
+  updateNeural() {
+    for (const pulse of this.neuralPulses) {
+      pulse.idx = (pulse.idx + pulse.speed) % this.points.length;
+      const target = this.points[pulse.idx];
+      if (target) {
+        target.x += (Math.random() - 0.5) * 2;
+        target.y += (Math.random() - 0.5) * 2;
+      }
+    }
   }
 
   destroy() {

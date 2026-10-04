@@ -92,6 +92,11 @@ matrix.destroy();
 | `08` | `galaxy` | Logarithmic Vortex | Multi-arm spiral dispersion | Loading / processing state |
 | `09` | `cylinder` | Particle Tunnel | Circular ring array along Z-axis | Data stream / bandwidth pipe |
 | `10` | `chaos` | Entropy Field | Uniform random 3D space distribution | Noise / glitch / particle cloud |
+| `11` | `rubik` | 3x3 Rubik Solver | 27 sub-cubes with periodic slice rotations | Mechanical puzzle / solver UI |
+| `12` | `tesseract` | 4D Hypercube | 4D $XW/ZW$ rotation projected to 3D | Sci-fi / high-dimensional math |
+| `13` | `blackhole` | Accretion Disc | Keplerian disk + gravitational lensing | Hero background / astrophysics |
+| `14` | `gyroid` | Minimal Surface | Triply periodic $\sin x \cos y$ isosurface | Metamaterials / organic tech |
+| `15` | `neural` | Synapse Graph | Multi-layer node network with pulse signals | AI model telemetry / neural HUD |
 
 ---
 
