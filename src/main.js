@@ -40,8 +40,8 @@ const studio = new DotMatrix('#main-stage', {
   trail: 0.25,
   interactive: true,
   onFrame: (telemetry) => {
-    hudPoints.textContent = String(telemetry.points).padStart(4, '0');
-    hudRot.textContent = `${(telemetry.ax % (Math.PI * 2)).toFixed(2)} / ${(telemetry.ay % (Math.PI * 2)).toFixed(2)}`;
+    if (hudPoints) hudPoints.textContent = String(telemetry.points).padStart(4, '0');
+    if (hudRot) hudRot.textContent = `${(telemetry.ax % (Math.PI * 2)).toFixed(2)} / ${(telemetry.ay % (Math.PI * 2)).toFixed(2)}`;
   }
 });
 
@@ -50,11 +50,12 @@ let activeFormat = 'esm';
 
 // Update live code display
 function updateCodeSnippet() {
+  if (!codeSnippet) return;
   const sx = (baseSpeedX * speedMultiplier).toFixed(4);
   const sy = (baseSpeedY * speedMultiplier).toFixed(4);
 
   if (activeFormat === 'esm') {
-    codeSnippet.textContent = `import DotMatrix from './src/dot-matrix.js';
+    codeSnippet.textContent = `import DotMatrix from './dot-matrix.js';
 
 // Initialize in any container (modal, hero, or AI card)
 const matrix = new DotMatrix('#container', {
@@ -112,8 +113,8 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 
 // Copy Code Button
 const copyBtn = document.getElementById('btn-copy-code');
-copyBtn.addEventListener('click', async () => {
-  const text = codeSnippet.textContent;
+copyBtn?.addEventListener('click', async () => {
+  const text = codeSnippet ? codeSnippet.textContent : '';
   try {
     await navigator.clipboard.writeText(text);
     copyBtn.textContent = '[ COPIED TO CLIPBOARD! ]';
@@ -138,7 +139,7 @@ presetButtons.forEach(btn => {
     presetButtons.forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     currentShape = btn.dataset.shape;
-    hudShape.textContent = currentShape.toUpperCase();
+    if (hudShape) hudShape.textContent = currentShape.toUpperCase();
     studio.setShape(currentShape);
     updateCodeSnippet();
   });
@@ -147,9 +148,9 @@ presetButtons.forEach(btn => {
 // Mechanical Sliders
 const sliderSpeed = document.getElementById('slider-speed');
 const speedVal = document.getElementById('speed-val');
-sliderSpeed.addEventListener('input', (e) => {
+sliderSpeed?.addEventListener('input', (e) => {
   speedMultiplier = parseFloat(e.target.value);
-  speedVal.textContent = `${speedMultiplier.toFixed(1)}x`;
+  if (speedVal) speedVal.textContent = `${speedMultiplier.toFixed(1)}x`;
   studio.updateOptions({
     speedX: baseSpeedX * speedMultiplier,
     speedY: baseSpeedY * speedMultiplier
@@ -159,32 +160,32 @@ sliderSpeed.addEventListener('input', (e) => {
 
 const sliderFov = document.getElementById('slider-fov');
 const fovVal = document.getElementById('fov-val');
-sliderFov.addEventListener('input', (e) => {
+sliderFov?.addEventListener('input', (e) => {
   currentFov = parseInt(e.target.value, 10);
-  fovVal.textContent = currentFov;
+  if (fovVal) fovVal.textContent = currentFov;
   studio.updateOptions({ fov: currentFov });
   updateCodeSnippet();
 });
 
 const sliderRadius = document.getElementById('slider-radius');
 const radiusVal = document.getElementById('radius-val');
-sliderRadius.addEventListener('input', (e) => {
+sliderRadius?.addEventListener('input', (e) => {
   currentRadius = parseFloat(e.target.value);
-  radiusVal.textContent = `${currentRadius.toFixed(1)}px`;
+  if (radiusVal) radiusVal.textContent = `${currentRadius.toFixed(1)}px`;
   studio.updateOptions({ pointSize: currentRadius });
   updateCodeSnippet();
 });
 
 // Play / Pause Toggle
 const toggleBtn = document.getElementById('btn-toggle');
-toggleBtn.addEventListener('click', () => {
+toggleBtn?.addEventListener('click', () => {
   studio.toggle();
   toggleBtn.textContent = studio.running ? 'Pause Engine' : 'Resume Engine';
-  hudFps.textContent = studio.running ? '60 FPS' : 'PAUSED';
+  if (hudFps) hudFps.textContent = studio.running ? '60 FPS' : 'PAUSED';
 });
 
 // Reset
-document.getElementById('btn-reset').addEventListener('click', () => {
+document.getElementById('btn-reset')?.addEventListener('click', () => {
   speedMultiplier = 1.0;
   currentFov = 360;
   currentRadius = 2.2;
@@ -225,7 +226,6 @@ let isAIThinking = false;
 
 btnSimulateAI?.addEventListener('click', () => {
   if (!aiMatrix || isAIThinking) return;
-  if (isAIThinking) return;
   isAIThinking = true;
 
   // Phase 1: High-Speed Vortex / Reasoning Loop
