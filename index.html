@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DotMatrix 3D - Modular Particle Canvas Engine</title>
+  <link rel="stylesheet" href="./src/style.css" />
+</head>
+<body>
+
+  <!-- Hero Section with Ambient Liquid Wave -->
+  <header>
+    <div id="hero-wave"></div>
+    <div class="hero-overlay">
+      <span class="badge">Zero Dependency &bull; Vanilla JS</span>
+      <h1>DotMatrix 3D Engine</h1>
+      <p class="subtitle">A hardware-friendly, math-projected 3D point cloud & lattice renderer. Drop it into any button, modal, or hero section.</p>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <h2 class="section-title">Interactive Studio</h2>
+      <p class="section-desc">Drag canvas to tilt in 3D. Click shapes to switch geometry instantly.</p>
+
+      <div class="stage-wrapper">
+        <div id="main-stage"></div>
+        <div class="controls-panel">
+          <div class="preset-grid">
+            <button class="preset-btn active" data-shape="cube">Cube</button>
+            <button class="preset-btn" data-shape="sphere">Sphere (Orb)</button>
+            <button class="preset-btn" data-shape="hollow-cube">Hollow Cube</button>
+            <button class="preset-btn" data-shape="torus">Torus (Donut)</button>
+            <button class="preset-btn" data-shape="breathing-cube">Breathing</button>
+            <button class="preset-btn" data-shape="helix">DNA Helix</button>
+            <button class="preset-btn" data-shape="wave">Liquid Wave</button>
+            <button class="preset-btn" data-shape="galaxy">Spiral Galaxy</button>
+            <button class="preset-btn" data-shape="cylinder">Cylinder</button>
+            <button class="preset-btn" data-shape="chaos">Chaos Field</button>
+          </div>
+          <div class="action-row">
+            <button id="btn-toggle" style="width: 100%;">Pause / Resume</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="section-title">Plug & Play Use Cases</h2>
+      <p class="section-desc">Instantiate in cards, containers, or trigger dynamically on user actions.</p>
+
+      <div class="grid-showcase">
+        <div class="card">
+          <div class="card-stage" id="card-sphere"></div>
+          <div class="card-info">
+            <h3>Card Background / Widget</h3>
+            <p>Self-resizes cleanly within small containers without memory leaks.</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-stage" id="card-torus"></div>
+          <div class="card-info">
+            <h3>Custom Palette & Speed</h3>
+            <p>Custom RGB colors and rotation velocities passed at initialization.</p>
+          </div>
+        </div>
+
+        <div class="card" style="justify-content: center; align-items: center; text-align: center;">
+          <div class="card-info" style="margin-bottom: 12px;">
+            <h3>On-Demand Trigger</h3>
+            <p>Click below to mount and spin inside an active modal dialog.</p>
+          </div>
+          <button id="btn-open-modal" style="padding: 10px 18px; font-weight: 600;">Launch Modal Trigger</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Dynamic Modal Demo -->
+  <div class="modal-backdrop" id="modal-backdrop">
+    <div class="modal-content">
+      <div id="modal-stage"></div>
+      <p style="font-size: 0.85rem; color: var(--text-muted); text-align: center;">Triggered dynamically on click with lifecycle sleep on close.</p>
+      <button id="btn-close-modal">Close Modal</button>
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
