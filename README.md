@@ -1,6 +1,6 @@
-# NOTHING (R) // DOTMATRIX_3D
+# ORBS BY UMER HAMAAZ
 
-> Minimalist, hardware-accelerated 3D volumetric point-lattice canvas engine. Built in compliance with the Nothing Design System guidelines (monochromatic hierarchy, OLED black contrast, zero-shadow precision, instrument telemetry).
+> Minimalist, hardware-accelerated 3D volumetric point-lattice and orb canvas engine. Engineered with an industrial instrument aesthetic (monochromatic hierarchy, OLED black contrast, zero-shadow precision, real-time telemetry).
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-black.svg?style=flat-square)](LICENSE)
 [![Bundle Size](https://img.shields.io/badge/Size-%3C6.2KB%20Gzipped-black.svg?style=flat-square)](src/dot-matrix.js)
@@ -14,7 +14,7 @@ This engine rejects bloated 3D web frameworks in favor of mechanical honesty:
 - **No Three.js (600KB+):** Eliminates massive runtime bundles for simple geometric point clouds.
 - **No CSS 3D Layout Thrashing:** Bypasses 1,000+ DOM `<div>` nodes that choke browser paint passes.
 - **Direct 3D $\to$ 2D Projection:** Mathematical isometric/perspective camera transforms executed on a single hardware-accelerated `<canvas>`.
-- **Nothing Typography & Tokens:** Designed around `Doto` (dot-matrix display), `Space Grotesk` (technical body), and `Space Mono` (instrument readouts).
+- **Instrument Typography & Tokens:** Designed around `Doto` (dot-matrix display), `Space Grotesk` (technical body), and `Space Mono` (instrument readouts).
 
 ---
 
@@ -154,7 +154,7 @@ onUnmounted(() => {
 
 - **OLED Surface:** Background `#000000`, card surfaces `#111111`, hairline structural dividers `#222222`.
 - **Status Indicator:** Single `#D71921` signal dot reserved exclusively for real-time state interrupt (`[REC ● LIVE]`).
-- **Typography Budget:** Exactly 3 typeface families loaded (`Doto`, `Space Grotesk`, `Space Mono`) adhering to the Nothing Three-Layer hierarchy rule.
+- **Typography Budget:** Exactly 3 typeface families loaded (`Doto`, `Space Grotesk`, `Space Mono`) adhering to the three-layer hierarchy rule.
 
 ---
 
