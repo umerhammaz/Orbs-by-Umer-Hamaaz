@@ -45,20 +45,91 @@ const studio = new DotMatrix('#main-stage', {
   }
 });
 
+// Current code format: 'esm' or 'html'
+let activeFormat = 'esm';
+
 // Update live code display
 function updateCodeSnippet() {
-  codeSnippet.textContent = `import DotMatrix from './src/dot-matrix.js';
+  const sx = (baseSpeedX * speedMultiplier).toFixed(4);
+  const sy = (baseSpeedY * speedMultiplier).toFixed(4);
 
-const matrix = new DotMatrix('#my-container', {
+  if (activeFormat === 'esm') {
+    codeSnippet.textContent = `import DotMatrix from './src/dot-matrix.js';
+
+// Initialize in any container (modal, hero, or AI card)
+const matrix = new DotMatrix('#container', {
   shape: '${currentShape}',
-  speedX: ${(baseSpeedX * speedMultiplier).toFixed(4)},
-  speedY: ${(baseSpeedY * speedMultiplier).toFixed(4)},
+  speedX: ${sx},
+  speedY: ${sy},
   fov: ${currentFov},
   pointSize: ${currentRadius},
   trail: 0.25,
-  interactive: true
+  interactive: true,
+  onFrame: (telemetry) => {
+    // Optional telemetry hook
+  }
 });`;
+  } else {
+    codeSnippet.textContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Orbs 3D Playground Export</title>
+  <style>
+    body { margin: 0; background: #000; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
+    #orb-stage { width: 100vw; height: 100vh; }
+  </style>
+</head>
+<body>
+  <div id="orb-stage"></div>
+  <script type="module">
+    import DotMatrix from 'https://cdn.jsdelivr.net/gh/umerhammaz/Orbs-by-Umer-Hamaaz@main/src/dot-matrix.js';
+
+    new DotMatrix('#orb-stage', {
+      shape: '${currentShape}',
+      speedX: ${sx},
+      speedY: ${sy},
+      fov: ${currentFov},
+      pointSize: ${currentRadius},
+      trail: 0.25,
+      interactive: true
+    });
+  <\/script>
+</body>
+</html>`;
+  }
 }
+
+// Code Format Tabs
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeFormat = btn.dataset.format;
+    updateCodeSnippet();
+  });
+});
+
+// Copy Code Button
+const copyBtn = document.getElementById('btn-copy-code');
+copyBtn.addEventListener('click', async () => {
+  const text = codeSnippet.textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+    copyBtn.textContent = '[ COPIED TO CLIPBOARD! ]';
+    copyBtn.style.background = '#4A9E5C';
+    copyBtn.style.color = '#fff';
+    copyBtn.style.borderColor = '#4A9E5C';
+    setTimeout(() => {
+      copyBtn.textContent = '[ COPY CODE ]';
+      copyBtn.style.background = '';
+      copyBtn.style.color = '';
+      copyBtn.style.borderColor = '';
+    }, 2000);
+  } catch (err) {
+    copyBtn.textContent = '[ COPY FAILED - SELECT MANUALLY ]';
+  }
+});
 
 // Preset Buttons
 const presetButtons = document.querySelectorAll('.seg-btn');
@@ -133,54 +204,142 @@ document.getElementById('btn-reset').addEventListener('click', () => {
 });
 
 // ==========================================================================
-// 3. Compact Sensor Modules
+// 3. Real-World AI & Interaction Use Cases
 // ==========================================================================
-new DotMatrix('#card-sphere', {
+
+// Use Case A: AI Agent "Thinking" / Reasoning Loop
+const aiMatrix = new DotMatrix('#card-ai', {
   shape: 'sphere',
-  color: '255, 255, 255',
-  speedX: 0.015,
-  speedY: 0.02,
+  color: '240, 240, 240',
+  speedX: 0.006,
+  speedY: 0.008,
   pointSize: 1.8,
+  interactive: false
+});
+
+const btnSimulateAI = document.getElementById('btn-simulate-ai');
+const aiStatusBadge = document.getElementById('ai-status-badge');
+const aiTokenStream = document.getElementById('ai-token-stream');
+let isAIThinking = false;
+
+btnSimulateAI.addEventListener('click', () => {
+  if (isAIThinking) return;
+  isAIThinking = true;
+
+  // Phase 1: High-Speed Vortex / Reasoning Loop
+  aiStatusBadge.textContent = 'AI // REASONING...';
+  aiStatusBadge.style.color = '#D71921';
+  aiStatusBadge.style.borderColor = '#D71921';
+  btnSimulateAI.disabled = true;
+  btnSimulateAI.textContent = 'Generating Tokens...';
+
+  aiMatrix.updateOptions({
+    shape: 'galaxy',
+    speedX: 0.035,
+    speedY: 0.045,
+    pointSize: 1.5,
+    color: '255, 255, 255'
+  });
+
+  let tokens = 0;
+  const tokenInterval = setInterval(() => {
+    tokens += Math.floor(Math.random() * 18) + 12;
+    aiTokenStream.textContent = `INFERENCE &bull; ${tokens} TOKENS GENERATED`;
+  }, 120);
+
+  // Phase 2: Completed / Resolved State
+  setTimeout(() => {
+    clearInterval(tokenInterval);
+    aiStatusBadge.textContent = 'AI // COMPLETE';
+    aiStatusBadge.style.color = '#4A9E5C';
+    aiStatusBadge.style.borderColor = '#4A9E5C';
+    aiTokenStream.textContent = `RESOLVED &bull; ${tokens} TOKENS IN 2.4s`;
+    btnSimulateAI.textContent = 'Simulate Prompt Again';
+    btnSimulateAI.disabled = false;
+    isAIThinking = false;
+
+    aiMatrix.updateOptions({
+      shape: 'sphere',
+      speedX: 0.006,
+      speedY: 0.008,
+      pointSize: 2.0,
+      color: '160, 255, 180'
+    });
+  }, 2600);
+});
+
+// Use Case B: Tactile Action Button Interaction
+const btnMatrix = new DotMatrix('#card-btn-action', {
+  shape: 'hollow-cube',
+  color: '255, 255, 255',
+  speedX: 0.01,
+  speedY: 0.015,
+  pointSize: 2.2,
   interactive: true
 });
 
-new DotMatrix('#card-torus', {
-  shape: 'torus',
-  color: '160, 240, 200',
-  speedX: 0.012,
-  speedY: 0.016,
-  pointSize: 2.0,
-  interactive: true
+const actionBtn = document.getElementById('btn-interactive-trigger');
+const actionStatus = document.getElementById('btn-trigger-status');
+
+actionBtn.addEventListener('click', () => {
+  actionStatus.textContent = 'BURST TRIGGERED [!]';
+  actionStatus.style.color = '#fff';
+
+  btnMatrix.updateOptions({
+    shape: 'chaos',
+    speedX: 0.06,
+    speedY: 0.07,
+    pointSize: 3.0
+  });
+
+  setTimeout(() => {
+    btnMatrix.updateOptions({
+      shape: 'hollow-cube',
+      speedX: 0.01,
+      speedY: 0.015,
+      pointSize: 2.2
+    });
+    actionStatus.textContent = 'IDLE &bull; READY';
+    actionStatus.style.color = '';
+  }, 800);
 });
 
-// ==========================================================================
-// 4. On-Demand Diagnostic Modal
-// ==========================================================================
-let modalInstance = null;
-const modalBackdrop = document.getElementById('modal-backdrop');
-const openModalBtn = document.getElementById('btn-open-modal');
-const closeModalBtn = document.getElementById('btn-close-modal');
-const closeModalAlt = document.getElementById('btn-close-modal-alt');
+// Use Case C: Voice / Audio Agent Visualizer
+const voiceMatrix = new DotMatrix('#card-voice', {
+  shape: 'wave',
+  color: '140, 210, 255',
+  speedX: 0.003,
+  speedY: 0.005,
+  pointSize: 1.8,
+  interactive: false
+});
 
-function openModal() {
-  modalBackdrop.classList.add('open');
-  if (!modalInstance) {
-    modalInstance = new DotMatrix('#modal-stage', {
-      shape: 'galaxy',
-      color: '255, 255, 255',
-      speedX: 0.008,
-      speedY: 0.014,
-      pointSize: 1.6
+const toggleVoiceBtn = document.getElementById('btn-toggle-voice');
+const voiceBadge = document.getElementById('voice-badge');
+const voiceStatus = document.getElementById('voice-status');
+let isSpeaking = false;
+
+toggleVoiceBtn.addEventListener('click', () => {
+  isSpeaking = !isSpeaking;
+  if (isSpeaking) {
+    voiceBadge.textContent = 'MIC // SPEAKING';
+    voiceBadge.style.color = '#38bdf8';
+    voiceStatus.textContent = 'SYNTHESIZING AUDIO';
+    voiceMatrix.updateOptions({
+      shape: 'helix',
+      color: '180, 230, 255',
+      speedX: 0.02,
+      speedY: 0.03
     });
   } else {
-    modalInstance.start();
+    voiceBadge.textContent = 'MIC // LISTENING';
+    voiceBadge.style.color = '';
+    voiceStatus.textContent = 'INPUT ACTIVE (IDLE)';
+    voiceMatrix.updateOptions({
+      shape: 'wave',
+      color: '140, 210, 255',
+      speedX: 0.003,
+      speedY: 0.005
+    });
   }
-}
-
-function closeModal() {
-  modalBackdrop.classList.remove('open');
-  if (modalInstance) modalInstance.stop();
-}
-
-openModalBtn.addEventListener('click', openModal);
-[closeModalBtn, closeModalAlt].forEach(btn => btn.addEventListener('click', closeModal));
+});

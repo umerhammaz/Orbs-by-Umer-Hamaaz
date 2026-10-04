@@ -2,9 +2,13 @@
 
 > Minimalist, hardware-accelerated 3D volumetric point-lattice and orb canvas engine. Engineered with an industrial instrument aesthetic (monochromatic hierarchy, OLED black contrast, zero-shadow precision, real-time telemetry).
 
+[![Live Website](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-white.svg?style=flat-square)](https://umerhammaz.github.io/Orbs-by-Umer-Hamaaz/)
+[![Live Website](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-white.svg?style=flat-square)](https://umerhammaz.github.io/Orbs-by-Umer-Hamaaz/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-black.svg?style=flat-square)](LICENSE)
 [![Bundle Size](https://img.shields.io/badge/Size-%3C6.2KB%20Gzipped-black.svg?style=flat-square)](src/dot-matrix.js)
 [![Dependencies](https://img.shields.io/badge/Dependencies-Zero-black.svg?style=flat-square)](package.json)
+
+**Live Playground:** [https://umerhammaz.github.io/Orbs-by-Umer-Hamaaz/](https://umerhammaz.github.io/Orbs-by-Umer-Hamaaz/)
 
 ---
 
@@ -91,7 +95,23 @@ matrix.destroy();
 
 ---
 
-## 5. INTEGRATION RECIPES
+## 5. REAL-WORLD UI RECIPES
+
+### A. AI Agent "Thinking" / Reasoning Loop
+Switch your orb to high-speed swirl during LLM inference, then resolve to a calm status ring when complete:
+
+```javascript
+const orb = new DotMatrix('#ai-orb', { shape: 'sphere', speedX: 0.005, speedY: 0.008 });
+
+// When user sends a prompt
+function onAISend() {
+  orb.updateOptions({ shape: 'galaxy', speedX: 0.035, speedY: 0.045, pointSize: 1.6 });
+}
+
+// When stream completes
+function onAIComplete() {
+  orb.updateOptions({ shape: 'sphere', speedX: 0.005, speedY: 0.008, pointSize: 2.2 });
+}
 
 ### React / Next.js
 ```tsx
