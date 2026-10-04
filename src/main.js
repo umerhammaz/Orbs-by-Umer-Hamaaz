@@ -297,7 +297,7 @@ const matrix = new DotMatrix('#container', ${json});
 <body>
   <div id="orb-stage"></div>
   <script type="module">
-    import DotMatrix from 'https://cdn.jsdelivr.net/gh/umerhammaz/Orbs-by-Umer-Hamaaz@main/src/dot-matrix.js';
+    import DotMatrix from 'https://umerhammaz.github.io/Orbs-by-Umer-Hamaaz/src/dot-matrix.js';
 
     new DotMatrix('#orb-stage', ${cfg});
   <\/script>
