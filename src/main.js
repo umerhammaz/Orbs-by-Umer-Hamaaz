@@ -204,25 +204,27 @@ document.getElementById('btn-reset').addEventListener('click', () => {
 });
 
 // ==========================================================================
-// 3. Real-World AI & Interaction Use Cases
+// 3. Real-World AI & Interaction Use Cases (Defensively Guarded)
 // ==========================================================================
 
 // Use Case A: AI Agent "Thinking" / Reasoning Loop
-const aiMatrix = new DotMatrix('#card-ai', {
+const aiCard = document.getElementById('card-ai');
+const aiMatrix = aiCard ? new DotMatrix('#card-ai', {
   shape: 'sphere',
   color: '240, 240, 240',
   speedX: 0.006,
   speedY: 0.008,
   pointSize: 1.8,
   interactive: false
-});
+}) : null;
 
 const btnSimulateAI = document.getElementById('btn-simulate-ai');
 const aiStatusBadge = document.getElementById('ai-status-badge');
 const aiTokenStream = document.getElementById('ai-token-stream');
 let isAIThinking = false;
 
-btnSimulateAI.addEventListener('click', () => {
+btnSimulateAI?.addEventListener('click', () => {
+  if (!aiMatrix || isAIThinking) return;
   if (isAIThinking) return;
   isAIThinking = true;
 
@@ -269,19 +271,21 @@ btnSimulateAI.addEventListener('click', () => {
 });
 
 // Use Case B: Tactile Action Button Interaction
-const btnMatrix = new DotMatrix('#card-btn-action', {
+const btnCard = document.getElementById('card-btn-action');
+const btnMatrix = btnCard ? new DotMatrix('#card-btn-action', {
   shape: 'hollow-cube',
   color: '255, 255, 255',
   speedX: 0.01,
   speedY: 0.015,
   pointSize: 2.2,
   interactive: true
-});
+}) : null;
 
 const actionBtn = document.getElementById('btn-interactive-trigger');
 const actionStatus = document.getElementById('btn-trigger-status');
 
-actionBtn.addEventListener('click', () => {
+actionBtn?.addEventListener('click', () => {
+  if (!btnMatrix) return;
   actionStatus.textContent = 'BURST TRIGGERED [!]';
   actionStatus.style.color = '#fff';
 
@@ -305,21 +309,23 @@ actionBtn.addEventListener('click', () => {
 });
 
 // Use Case C: Voice / Audio Agent Visualizer
-const voiceMatrix = new DotMatrix('#card-voice', {
+const voiceCard = document.getElementById('card-voice');
+const voiceMatrix = voiceCard ? new DotMatrix('#card-voice', {
   shape: 'wave',
   color: '140, 210, 255',
   speedX: 0.003,
   speedY: 0.005,
   pointSize: 1.8,
   interactive: false
-});
+}) : null;
 
 const toggleVoiceBtn = document.getElementById('btn-toggle-voice');
 const voiceBadge = document.getElementById('voice-badge');
 const voiceStatus = document.getElementById('voice-status');
 let isSpeaking = false;
 
-toggleVoiceBtn.addEventListener('click', () => {
+toggleVoiceBtn?.addEventListener('click', () => {
+  if (!voiceMatrix) return;
   isSpeaking = !isSpeaking;
   if (isSpeaking) {
     voiceBadge.textContent = 'MIC // SPEAKING';
