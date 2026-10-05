@@ -51,7 +51,9 @@ const ENGINE_DEFAULTS = {
   panY: 0,
   motion: 'spin',
   swing: 0.6,
-  dolly: 0
+  dolly: 0,
+  snapToDetent: true,
+  absorption: true
 };
 
 const CAMERA_CONTROLS = [
@@ -68,7 +70,9 @@ const CAMERA_CONTROLS = [
   { key: 'viewZ', label: 'Roll', type: 'number', min: -3.14, max: 3.14, step: 0.05 },
   { key: 'panX', label: 'Pan X', type: 'number', min: -0.6, max: 0.6, step: 0.02 },
   { key: 'panY', label: 'Pan Y', type: 'number', min: -0.6, max: 0.6, step: 0.02 },
-  { key: 'dolly', label: 'Dolly Pulse', type: 'number', min: 0, max: 0.5, step: 0.02 }
+  { key: 'dolly', label: 'Dolly Pulse', type: 'number', min: 0, max: 0.5, step: 0.02 },
+  { key: 'snapToDetent', label: 'Detent Snapping', type: 'bool' },
+  { key: 'absorption', label: 'Drop Absorption', type: 'bool' }
 ];
 
 const RENDER_CONTROLS = [
@@ -292,7 +296,9 @@ const EXPORT_DEFAULTS = {
   panY: 0,
   motion: 'spin',
   swing: 0.6,
-  dolly: 0
+  dolly: 0,
+  snapToDetent: true,
+  absorption: true
 };
 
 function literal(value, depth = 0) {

@@ -25,7 +25,8 @@ const STATE_KEYS = [
   'shape', 'color', 'color2', 'colorMode', 'trail', 'speedX', 'speedY', 'speedZ', 'fov',
   'pointSize', 'density', 'seed', 'projection', 'zoom', 'depthFade', 'sizeByDepth',
   'depthSort', 'inertia', 'lockAxis', 'interactive',
-  'view', 'viewX', 'viewY', 'viewZ', 'panX', 'panY', 'motion', 'swing', 'dolly'
+  'view', 'viewX', 'viewY', 'viewZ', 'panX', 'panY', 'motion', 'swing', 'dolly',
+  'snapToDetent', 'absorption'
 ];
 
 // Camera presets: [pitch, yaw, roll] in radians
@@ -90,6 +91,8 @@ export default class DotMatrix {
       motion: options.motion || 'spin',
       swing: options.swing ?? 0.6,
       dolly: options.dolly ?? 0,
+      snapToDetent: options.snapToDetent ?? true,
+      absorption: options.absorption ?? true,
       onFrame: options.onFrame || null
     };
 
@@ -123,7 +126,10 @@ export default class DotMatrix {
     this._builtSize = 0;
     this._pool = [];
     this._buckets = Array.from({ length: ALPHA_BUCKETS }, () => []);
-    this.mouse = { isDown: false, lastX: 0, lastY: 0 };
+    this.mouse = { isDown: false, lastX: 0, lastY: 0, isPan: false };
+    this._vx = 0;
+    this._vy = 0;
+    this._latched = false;
 
     this._syncColors();
     this.resize();
@@ -156,31 +162,85 @@ export default class DotMatrix {
   bindEvents() {
     this._onDown = (e) => {
       this.mouse.isDown = true;
+      this.mouse.isPan = e.shiftKey || e.button === 1 || e.button === 2;
       this.mouse.lastX = e.clientX;
       this.mouse.lastY = e.clientY;
       this.spinX = 0;
       this.spinY = 0;
+      this._vx = 0;
+      this._vy = 0;
+      this._latched = false;
+      this._lastMove = performance.now();
     };
     this._onMove = (e) => {
       if (!this.mouse.isDown) return;
-      const lock = this.opts.lockAxis;
-      const dx = lock === 'x' ? 0 : (e.clientX - this.mouse.lastX) * 0.005;
-      const dy = lock === 'y' ? 0 : (e.clientY - this.mouse.lastY) * 0.005;
-      this.ay += dx;
-      this.ax += dy;
-      this.spinY = dx;
-      this.spinX = dy;
-      this._lastMove = performance.now();
+      const rawDx = e.clientX - this.mouse.lastX;
+      const rawDy = e.clientY - this.mouse.lastY;
+      if (!Number.isFinite(rawDx) || !Number.isFinite(rawDy)) return;
+
+      // Anti-hammering / high-power attack bounds clamp
+      const cx = clamp(rawDx, -40, 40);
+      const cy = clamp(rawDy, -40, 40);
+
       this.mouse.lastX = e.clientX;
       this.mouse.lastY = e.clientY;
+      this._lastMove = performance.now();
+
+      if (this.mouse.isPan) {
+        const scale = 1 / (this.size || 300);
+        const dpx = cx * scale;
+        const dpy = cy * scale;
+        this.opts.panX = clamp(this.opts.panX + dpx, -1.2, 1.2);
+        this.opts.panY = clamp(this.opts.panY + dpy, -1.2, 1.2);
+      } else {
+        const lock = this.opts.lockAxis;
+        const dx = lock === 'x' ? 0 : cx * 0.005;
+        const dy = lock === 'y' ? 0 : cy * 0.005;
+        this.ay += dx;
+        this.ax += dy;
+
+        // Exponential leaky velocity integrator
+        this._vx = this._vx * 0.35 + dx * 0.65;
+        this._vy = this._vy * 0.35 + dy * 0.65;
+        this.spinY = dx;
+        this.spinX = dy;
+      }
     };
     this._onUp = () => {
       if (!this.mouse.isDown) return;
       this.mouse.isDown = false;
-      if (this.opts.inertia <= 0 || performance.now() - this._lastMove > 80) {
+      const timeSinceMove = performance.now() - (this._lastMove || 0);
+
+      if (this.opts.absorption) {
+        // Drop lock: manual intervention halts perpetual auto-spin
+        this.opts.motion = 'still';
+
+        const energy = this._vx * this._vx + this._vy * this._vy;
+        if (timeSinceMove > 50 || energy < 0.00015) {
+          // Zone 1: Deadband drop - immediate total momentum arrest
+          this.spinX = 0;
+          this.spinY = 0;
+          this._vx = 0;
+          this._vy = 0;
+        } else if (energy < 0.0025) {
+          // Zone 2: Viscous siphon
+          this.spinX = clamp(this._vy * 0.35, -0.02, 0.02);
+          this.spinY = clamp(this._vx * 0.35, -0.02, 0.02);
+        } else {
+          // Zone 3: Controlled bounded flick
+          this.spinX = clamp(this._vy * 0.6, -0.05, 0.05);
+          this.spinY = clamp(this._vx * 0.6, -0.05, 0.05);
+        }
+      } else if (this.opts.inertia <= 0 || timeSinceMove > 80) {
         this.spinX = 0;
         this.spinY = 0;
       }
+    };
+    this._onContextMenu = (e) => {
+      if (this.opts.interactive) e.preventDefault();
+    };
+    this._onDblClick = () => {
+      this.opts.motion = this.opts.motion === 'spin' ? 'still' : 'spin';
     };
     this._onWheel = (e) => {
       if (!this.opts.wheelZoom) return;
@@ -189,6 +249,8 @@ export default class DotMatrix {
     };
 
     this.canvas.addEventListener('pointerdown', this._onDown);
+    this.canvas.addEventListener('contextmenu', this._onContextMenu);
+    this.canvas.addEventListener('dblclick', this._onDblClick);
     window.addEventListener('pointermove', this._onMove);
     window.addEventListener('pointerup', this._onUp);
     window.addEventListener('pointercancel', this._onUp);
@@ -315,9 +377,43 @@ export default class DotMatrix {
       this.ax += ((auto ? opts.speedX : 0) + this.spinX) * dtf;
       this.ay += ((auto ? opts.speedY : 0) + this.spinY) * dtf;
       this.az += (auto ? opts.speedZ : 0) * dtf;
-      const decay = Math.pow(opts.inertia, dtf);
+
+      // Resilient kinetic absorption decay
+      const decay = opts.absorption
+        ? Math.pow(Math.min(opts.inertia > 0 ? opts.inertia : 0.82, 0.92), dtf)
+        : Math.pow(opts.inertia, dtf);
+
       this.spinX *= decay;
       this.spinY *= decay;
+
+      if (Math.abs(this.spinX) < 0.00008) this.spinX = 0;
+      if (Math.abs(this.spinY) < 0.00008) this.spinY = 0;
+
+      // Magnetic Detent Basin (Snap to Top & Cardinal Anchors)
+      if (opts.snapToDetent && Math.abs(this.spinX) < 0.018 && Math.abs(this.spinY) < 0.018) {
+        const normPitch = ((this.ax % TAU) + TAU + Math.PI) % TAU - Math.PI;
+        const detentPitch = Math.PI / 2; // Top orientation
+        const diffPitch = detentPitch - normPitch;
+
+        // Gravitational basin capture (~20 degrees)
+        if (Math.abs(diffPitch) < 0.35) {
+          const pull = diffPitch * 0.14 * dtf;
+          this.ax += pull;
+          this.spinX *= 0.6;
+          if (Math.abs(diffPitch) < 0.002) {
+            this.ax += diffPitch;
+            this.spinX = 0;
+            this._latched = true;
+          }
+        }
+
+        // Spatial Pan Detent (Top shelf snap if dropped near top: panY ~ -0.38)
+        if (opts.panY < -0.25 && opts.panY > -0.55) {
+          const diffPan = -0.38 - opts.panY;
+          opts.panY += diffPan * 0.15 * dtf;
+          if (Math.abs(diffPan) < 0.003) opts.panY = -0.38;
+        }
+      }
     }
 
     const vw = VIEWS[opts.view] || VIEWS.free;
@@ -416,6 +512,8 @@ export default class DotMatrix {
     this.ro.disconnect();
     if (this._onDown) {
       this.canvas.removeEventListener('pointerdown', this._onDown);
+      this.canvas.removeEventListener('contextmenu', this._onContextMenu);
+      this.canvas.removeEventListener('dblclick', this._onDblClick);
       this.canvas.removeEventListener('wheel', this._onWheel);
       window.removeEventListener('pointermove', this._onMove);
       window.removeEventListener('pointerup', this._onUp);
