@@ -93,6 +93,7 @@ export default class DotMatrix {
       dolly: options.dolly ?? 0,
       snapToDetent: options.snapToDetent ?? true,
       absorption: options.absorption ?? true,
+      onChange: options.onChange || null,
       onFrame: options.onFrame || null
     };
 
@@ -235,6 +236,7 @@ export default class DotMatrix {
         this.spinX = 0;
         this.spinY = 0;
       }
+      if (this.opts.onChange) this.opts.onChange(this.getState());
     };
     this._onContextMenu = (e) => {
       if (this.opts.interactive) e.preventDefault();
@@ -268,7 +270,12 @@ export default class DotMatrix {
     Object.assign(this.opts, rest);
     this._syncColors();
 
-    if ((rest.motion !== undefined && rest.motion !== prevMotion) ||
+    if (rest.initialRotation && Array.isArray(rest.initialRotation)) {
+      const [rx = 0, ry = 0, rz = 0] = rest.initialRotation;
+      this.ax = rx;
+      this.ay = ry;
+      this.az = rz;
+    } else if ((rest.motion !== undefined && rest.motion !== prevMotion) ||
         (rest.view !== undefined && rest.view !== prevView)) {
       this.ax = 0;
       this.ay = 0;
@@ -325,6 +332,11 @@ export default class DotMatrix {
       const v = this.opts[key];
       state[key] = typeof v === 'number' ? +v.toFixed(5) : v;
     }
+    state.initialRotation = [
+      +this.ax.toFixed(4),
+      +this.ay.toFixed(4),
+      +this.az.toFixed(4)
+    ];
     const schema = DotMatrix.getSchema(this.opts.shape);
     const over = this.params[this.opts.shape] || {};
     const diff = {};

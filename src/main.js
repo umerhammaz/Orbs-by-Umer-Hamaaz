@@ -98,6 +98,7 @@ const studio = new DotMatrix('#main-stage', {
   pointSize: DEFAULT_RADIUS,
   trail: 0.25,
   interactive: true,
+  onChange: () => updateCodeSnippet(),
   onFrame: (telemetry) => {
     if (hudPoints) hudPoints.textContent = String(telemetry.points).padStart(4, '0');
     if (hudRot) hudRot.textContent = `${(telemetry.ax % (Math.PI * 2)).toFixed(2)} / ${(telemetry.ay % (Math.PI * 2)).toFixed(2)}`;
@@ -323,6 +324,10 @@ function exportConfig() {
   const out = { shape: state.shape };
   for (const [k, v] of Object.entries(state)) {
     if (k === 'shape' || k === 'shapeParams') continue;
+    if (k === 'initialRotation') {
+      if (v && (v[0] !== 0 || v[1] !== 0 || v[2] !== 0)) out.initialRotation = v;
+      continue;
+    }
     if (EXPORT_DEFAULTS[k] !== v) out[k] = v;
   }
   if (state.shapeParams) out.shapeParams = state.shapeParams;
@@ -523,6 +528,7 @@ function loadFromHash() {
   try {
     const state = JSON.parse(decodeURIComponent(location.hash.slice(3)));
     studio.setState(state);
+    updateCodeSnippet();
   } catch (err) {
     console.warn('[Orbs] Ignored invalid share link.', err);
   }

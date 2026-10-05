@@ -89,12 +89,31 @@ header {
   align-items: center;
 }
 
+.brand-group {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
 .brand-tag {
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-secondary);
+}
+
+.mini-badge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-visible);
+  padding: 1px 6px;
+  border-radius: 4px;
+  line-height: 1.4;
 }
 
 .live-indicator {
