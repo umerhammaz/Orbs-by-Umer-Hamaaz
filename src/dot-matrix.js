@@ -109,10 +109,18 @@ export default class DotMatrix {
     this.canvas.style.height = '100%';
     this.container.appendChild(this.canvas);
 
-    const [rx = 0, ry = 0, rz = 0] = options.initialRotation || [];
-    this.ax = rx;
-    this.ay = ry;
-    this.az = rz;
+    let rx = 0, ry = 0, rz = 0;
+    const ir = options.initialRotation;
+    if (Array.isArray(ir)) {
+      [rx = 0, ry = 0, rz = 0] = ir;
+    } else if (ir && typeof ir === 'object') {
+      rx = ir.x ?? ir[0] ?? 0;
+      ry = ir.y ?? ir[1] ?? 0;
+      rz = ir.z ?? ir[2] ?? 0;
+    }
+    this.ax = Number(rx) || 0;
+    this.ay = Number(ry) || 0;
+    this.az = Number(rz) || 0;
     this.spinX = 0;
     this.spinY = 0;
     this.t = 0;
@@ -270,11 +278,17 @@ export default class DotMatrix {
     Object.assign(this.opts, rest);
     this._syncColors();
 
-    if (rest.initialRotation && Array.isArray(rest.initialRotation)) {
-      const [rx = 0, ry = 0, rz = 0] = rest.initialRotation;
-      this.ax = rx;
-      this.ay = ry;
-      this.az = rz;
+    if (rest.initialRotation) {
+      const ir = rest.initialRotation;
+      if (Array.isArray(ir)) {
+        this.ax = Number(ir[0]) || 0;
+        this.ay = Number(ir[1]) || 0;
+        this.az = Number(ir[2]) || 0;
+      } else if (typeof ir === 'object') {
+        this.ax = Number(ir.x ?? ir[0]) || 0;
+        this.ay = Number(ir.y ?? ir[1]) || 0;
+        this.az = Number(ir.z ?? ir[2]) || 0;
+      }
     } else if ((rest.motion !== undefined && rest.motion !== prevMotion) ||
         (rest.view !== undefined && rest.view !== prevView)) {
       this.ax = 0;

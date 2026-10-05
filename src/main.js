@@ -308,6 +308,9 @@ function literal(value, depth = 0) {
   if (typeof value === 'string') {
     return "'" + value.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
   }
+  if (Array.isArray(value)) {
+    return '[' + value.map((v) => literal(v, depth)).join(', ') + ']';
+  }
   if (value && typeof value === 'object') {
     const entries = Object.entries(value);
     if (!entries.length) return '{}';
