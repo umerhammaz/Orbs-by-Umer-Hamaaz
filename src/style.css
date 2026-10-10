@@ -218,6 +218,12 @@ main {
   flex-direction: column;
 }
 
+.viewport-wrap.bg-transparent {
+  background-color: #080808;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
 #main-stage {
   flex: 1;
   width: 100%;

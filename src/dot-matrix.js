@@ -9,6 +9,11 @@ import { SHAPES, TAU, makeContext, resolveParams } from './shapes.js';
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
 function parseColor(str, fallback) {
+  if (typeof str === 'string' && str.startsWith('#')) {
+    const hex = str.slice(1);
+    if (hex.length === 3) return [parseInt(hex[0] + hex[0], 16), parseInt(hex[1] + hex[1], 16), parseInt(hex[2] + hex[2], 16)];
+    if (hex.length >= 6) return [parseInt(hex.slice(0, 2), 16), parseInt(hex.slice(2, 4), 16), parseInt(hex.slice(4, 6), 16)];
+  }
   const parts = String(str).split(',').map((s) => Number(s.trim()));
   if (parts.length < 3 || parts.some((n) => !Number.isFinite(n))) return fallback;
   return parts.slice(0, 3).map((n) => clamp(Math.round(n), 0, 255));
@@ -22,9 +27,9 @@ function mixColor(a, b, t) {
 
 const ALPHA_BUCKETS = 16;
 const STATE_KEYS = [
-  'shape', 'color', 'color2', 'colorMode', 'trail', 'speedX', 'speedY', 'speedZ', 'fov',
+  'shape', 'color', 'color2', 'colorMode', 'bg', 'trail', 'speedX', 'speedY', 'speedZ', 'fov',
   'pointSize', 'density', 'seed', 'projection', 'zoom', 'depthFade', 'sizeByDepth',
-  'depthSort', 'inertia', 'lockAxis', 'interactive',
+  'depthSort', 'inertia', 'lockAxis', 'interactive', 'hoverTilt', 'hoverStrength',
   'view', 'viewX', 'viewY', 'viewZ', 'panX', 'panY', 'motion', 'swing', 'dolly',
   'snapToDetent', 'absorption'
 ];
@@ -64,7 +69,10 @@ export default class DotMatrix {
       color: options.color || '255, 255, 255',
       color2: options.color2 || '90, 90, 90',
       colorMode: options.colorMode || 'solid',
+      bg: options.bg || '0, 0, 0',
       trail: options.trail ?? 0.25,
+      hoverTilt: options.hoverTilt ?? true,
+      hoverStrength: options.hoverStrength ?? 0.6,
       speedX: options.speedX ?? 0.012,
       speedY: options.speedY ?? 0.018,
       speedZ: options.speedZ ?? 0,
@@ -135,9 +143,11 @@ export default class DotMatrix {
     this._builtSize = 0;
     this._pool = [];
     this._buckets = Array.from({ length: ALPHA_BUCKETS }, () => []);
-    this.mouse = { isDown: false, lastX: 0, lastY: 0, isPan: false };
+    this.mouse = { isDown: false, lastX: 0, lastY: 0, isPan: false, hoverX: 0, hoverY: 0, isHover: false };
     this._vx = 0;
     this._vy = 0;
+    this._hovX = 0;
+    this._hovY = 0;
     this._latched = false;
 
     this._syncColors();
@@ -155,6 +165,8 @@ export default class DotMatrix {
   _syncColors() {
     this._rgb = parseColor(this.opts.color, [255, 255, 255]);
     this._rgb2 = parseColor(this.opts.color2, [90, 90, 90]);
+    this._isTransparentBg = this.opts.bg === 'transparent' || this.opts.bg === 'none';
+    this._rgbBg = this._isTransparentBg ? null : parseColor(this.opts.bg, [0, 0, 0]).join(', ');
   }
 
   resize() {
@@ -174,6 +186,7 @@ export default class DotMatrix {
       this.mouse.isPan = e.shiftKey || e.button === 1 || e.button === 2;
       this.mouse.lastX = e.clientX;
       this.mouse.lastY = e.clientY;
+      this.mouse.isHover = true;
       this.spinX = 0;
       this.spinY = 0;
       this._vx = 0;
@@ -181,7 +194,20 @@ export default class DotMatrix {
       this._latched = false;
       this._lastMove = performance.now();
     };
+    this._onLeave = () => {
+      if (!this.mouse.isDown) this.mouse.isHover = false;
+    };
     this._onMove = (e) => {
+      const rect = this.canvas.getBoundingClientRect();
+      const inside = e.clientX >= rect.left && e.clientX <= rect.right &&
+                     e.clientY >= rect.top && e.clientY <= rect.bottom;
+      if (inside && rect.width > 0 && rect.height > 0) {
+        this.mouse.hoverX = clamp((e.clientX - rect.left) / rect.width - 0.5, -0.5, 0.5);
+        this.mouse.hoverY = clamp((e.clientY - rect.top) / rect.height - 0.5, -0.5, 0.5);
+        this.mouse.isHover = true;
+      } else if (!this.mouse.isDown) {
+        this.mouse.isHover = false;
+      }
       if (!this.mouse.isDown) return;
       const rawDx = e.clientX - this.mouse.lastX;
       const rawDy = e.clientY - this.mouse.lastY;
@@ -259,6 +285,7 @@ export default class DotMatrix {
     };
 
     this.canvas.addEventListener('pointerdown', this._onDown);
+    this.canvas.addEventListener('pointerleave', this._onLeave);
     this.canvas.addEventListener('contextmenu', this._onContextMenu);
     this.canvas.addEventListener('dblclick', this._onDblClick);
     window.addEventListener('pointermove', this._onMove);
@@ -393,8 +420,19 @@ export default class DotMatrix {
 
     const { ctx, w, h, size, opts } = this;
 
-    ctx.fillStyle = `rgba(0, 0, 0, ${opts.trail})`;
-    ctx.fillRect(0, 0, w, h);
+    if (this._isTransparentBg) {
+      if (opts.trail >= 1) {
+        ctx.clearRect(0, 0, w, h);
+      } else {
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.fillStyle = `rgba(0, 0, 0, ${opts.trail})`;
+        ctx.fillRect(0, 0, w, h);
+        ctx.globalCompositeOperation = 'source-over';
+      }
+    } else {
+      ctx.fillStyle = `rgba(${this._rgbBg}, ${opts.trail})`;
+      ctx.fillRect(0, 0, w, h);
+    }
 
     if (this.def && this.def.update) this.def.update(this.sc, this.P, this.points, this.t, dtf);
 
@@ -442,6 +480,15 @@ export default class DotMatrix {
       }
     }
 
+    const targetHovX = (opts.hoverTilt && this.mouse.isHover && !this.mouse.isDown)
+      ? -this.mouse.hoverY * opts.hoverStrength
+      : 0;
+    const targetHovY = (opts.hoverTilt && this.mouse.isHover && !this.mouse.isDown)
+      ? this.mouse.hoverX * opts.hoverStrength
+      : 0;
+    this._hovX += (targetHovX - this._hovX) * Math.min(1, 0.14 * dtf);
+    this._hovY += (targetHovY - this._hovY) * Math.min(1, 0.14 * dtf);
+
     const vw = VIEWS[opts.view] || VIEWS.free;
     let swX = 0, swY = 0;
     if (opts.motion === 'sway') {
@@ -449,8 +496,8 @@ export default class DotMatrix {
       swY = Math.sin(ph) * opts.swing;
       swX = Math.sin(ph * 0.7 + 1) * opts.swing * 0.5;
     }
-    const aX = this.ax + vw[0] + opts.viewX + swX;
-    const aY = this.ay + vw[1] + opts.viewY + swY;
+    const aX = this.ax + vw[0] + opts.viewX + swX + this._hovX;
+    const aY = this.ay + vw[1] + opts.viewY + swY + this._hovY;
     const aZ = this.az + vw[2] + opts.viewZ;
     const cosX = Math.cos(aX), sinX = Math.sin(aX);
     const cosY = Math.cos(aY), sinY = Math.sin(aY);
@@ -538,6 +585,7 @@ export default class DotMatrix {
     this.ro.disconnect();
     if (this._onDown) {
       this.canvas.removeEventListener('pointerdown', this._onDown);
+      this.canvas.removeEventListener('pointerleave', this._onLeave);
       this.canvas.removeEventListener('contextmenu', this._onContextMenu);
       this.canvas.removeEventListener('dblclick', this._onDblClick);
       this.canvas.removeEventListener('wheel', this._onWheel);

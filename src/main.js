@@ -29,6 +29,9 @@ const DEFAULT_FOV = 360;
 const DEFAULT_RADIUS = 2.2;
 
 const ENGINE_DEFAULTS = {
+  bg: '0, 0, 0',
+  hoverTilt: true,
+  hoverStrength: 0.6,
   speedZ: 0,
   zoom: 1,
   projection: 'perspective',
@@ -57,6 +60,8 @@ const ENGINE_DEFAULTS = {
 };
 
 const CAMERA_CONTROLS = [
+  { key: 'hoverTilt', label: 'Cursor Hover Tilt', type: 'bool' },
+  { key: 'hoverStrength', label: 'Hover Strength', type: 'number', min: 0, max: 1.5, step: 0.05 },
   { key: 'speedZ', label: 'Roll Speed', type: 'number', min: -0.05, max: 0.05, step: 0.001 },
   { key: 'zoom', label: 'Zoom', type: 'number', min: 0.4, max: 2.5, step: 0.05 },
   { key: 'projection', label: 'Projection', type: 'enum', options: ['perspective', 'orthographic'] },
@@ -76,6 +81,7 @@ const CAMERA_CONTROLS = [
 ];
 
 const RENDER_CONTROLS = [
+  { key: 'bg', label: 'Background', type: 'enum', options: ['0, 0, 0', 'transparent', '18, 18, 22', '10, 20, 32'] },
   { key: 'density', label: 'Density', type: 'number', min: 0.25, max: 3, step: 0.25 },
   { key: 'trail', label: 'Trail Fade', type: 'number', min: 0.05, max: 1, step: 0.05 },
   { key: 'depthFade', label: 'Depth Fade', type: 'number', min: 0, max: 1, step: 0.05 },
@@ -257,6 +263,8 @@ function buildEngineControls() {
         value: studio.opts[c.key],
         onInput: (v) => {
           studio.updateOptions({ [c.key]: v });
+          const wrap = document.querySelector('.viewport-wrap');
+          if (wrap) wrap.classList.toggle('bg-transparent', studio.opts.bg === 'transparent');
           updateCodeSnippet();
         }
       }));
@@ -270,6 +278,9 @@ function buildEngineControls() {
 let activeFormat = 'esm';
 
 const EXPORT_DEFAULTS = {
+  bg: '0, 0, 0',
+  hoverTilt: true,
+  hoverStrength: 0.6,
   color: '255, 255, 255',
   color2: '90, 90, 90',
   colorMode: 'solid',
