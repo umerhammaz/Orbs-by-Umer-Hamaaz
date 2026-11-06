@@ -23,6 +23,17 @@ const hudRot = $('hud-rot');
 const hudFps = $('hud-fps');
 const codeSnippet = $('live-code-snippet');
 
+function refreshMotionUI() {
+  const row = document.querySelector('#camera-controls [data-key="motion"]');
+  if (!row) return;
+  const inp = row.lastElementChild;
+  const ro = row.querySelector('.slider-readout');
+  if (inp && inp.tagName === 'SELECT') {
+    inp.value = studio.opts.motion;
+    if (ro) ro.textContent = String(studio.opts.motion).toUpperCase();
+  }
+}
+
 const baseSpeedX = 0.012;
 const baseSpeedY = 0.018;
 const DEFAULT_FOV = 360;
@@ -105,6 +116,7 @@ const studio = new DotMatrix('#main-stage', {
   trail: 0.25,
   interactive: true,
   onChange: () => updateCodeSnippet(),
+  onMotionChange: () => refreshMotionUI(),
   onFrame: (telemetry) => {
     if (hudPoints) hudPoints.textContent = String(telemetry.points).padStart(4, '0');
     if (hudRot) hudRot.textContent = `${(telemetry.ax % (Math.PI * 2)).toFixed(2)} / ${(telemetry.ay % (Math.PI * 2)).toFixed(2)}`;
@@ -112,6 +124,10 @@ const studio = new DotMatrix('#main-stage', {
     if (hudFps && frameCount % 20 === 0) hudFps.textContent = `${Math.round(telemetry.fps)} FPS`;
   }
 });
+
+if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  studio.updateOptions({ motion: 'still' });
+}
 
 // --- Dynamic control builder -------------------------------------------------
 function el(tag, cls, text) {
@@ -143,6 +159,7 @@ function makeControl(spec) {
   const readout = el('span', 'slider-readout');
   head.append(el('span', null, spec.label), readout);
   row.appendChild(head);
+  if (spec.key) row.dataset.key = spec.key;
 
   if (spec.type === 'number' || (spec.type === 'int' && !spec.widget)) {
     const d = decimals(spec.step);
@@ -215,6 +232,9 @@ function makeControl(spec) {
     });
     row.appendChild(input);
   }
+
+  const _ctlEl = row.lastElementChild;
+  if (_ctlEl && _ctlEl !== head && _ctlEl.setAttribute) _ctlEl.setAttribute('aria-label', spec.label);
 
   if (spec.def !== undefined) {
     const btn = el('button', 'row-reset', '\u21BA');
@@ -362,7 +382,12 @@ function exportConfig() {
   return out;
 }
 
+let _codeRaf = 0;
 function updateCodeSnippet() {
+  if (!codeSnippet || _codeRaf) return;
+  _codeRaf = requestAnimationFrame(() => { _codeRaf = 0; _renderSnippet(); });
+}
+function _renderSnippet() {
   if (!codeSnippet) return;
   const json = literal(exportConfig());
 
@@ -430,6 +455,18 @@ copyBtn?.addEventListener('click', async () => {
 });
 
 // --- Presets -----------------------------------------------------------------
+const matrixButtonsBox = document.querySelector('.matrix-buttons');
+if (matrixButtonsBox) {
+  matrixButtonsBox.innerHTML = '';
+  DotMatrix.shapes.forEach((name, i) => {
+    const btn = el('button', 'seg-btn');
+    btn.type = 'button';
+    btn.dataset.shape = name;
+    btn.textContent = `${String(i + 1).padStart(2, '0')} ${DotMatrix.getLabel(name).toUpperCase()}`;
+    matrixButtonsBox.appendChild(btn);
+  });
+}
+
 const presetButtons = document.querySelectorAll('.seg-btn');
 
 function markActivePreset() {

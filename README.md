@@ -3,7 +3,6 @@
 > Minimalist, hardware-accelerated 3D volumetric point-lattice and orb canvas engine. Engineered with an industrial instrument aesthetic (monochromatic hierarchy, OLED black contrast, zero-shadow precision, real-time telemetry).
 
 [![Live Website](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-white.svg?style=flat-square)](https://umerhammaz.github.io/Orbs-by-Umer-Hamaaz/)
-[![Live Website](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-white.svg?style=flat-square)](https://umerhammaz.github.io/Orbs-by-Umer-Hamaaz/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-black.svg?style=flat-square)](LICENSE)
 [![Bundle Size](https://img.shields.io/badge/Size-%3C15KB-black.svg?style=flat-square)](src/dot-matrix.js)
 [![Dependencies](https://img.shields.io/badge/Dependencies-Zero-black.svg?style=flat-square)](package.json)
@@ -34,7 +33,7 @@ npm install
 npm run dev
 ```
 
-*Or simply open `index.html` in any modern browser directly.*
+*Or serve it statically (`npx serve .` or `python -m http.server`) — ES module imports require HTTP, not `file://`.*
 
 ---
 

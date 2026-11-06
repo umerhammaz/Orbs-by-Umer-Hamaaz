@@ -102,7 +102,8 @@ export default class DotMatrix {
       snapToDetent: options.snapToDetent ?? true,
       absorption: options.absorption ?? true,
       onChange: options.onChange || null,
-      onFrame: options.onFrame || null
+      onFrame: options.onFrame || null,
+      onMotionChange: options.onMotionChange || null
     };
 
     this.params = {};
@@ -165,6 +166,7 @@ export default class DotMatrix {
   _syncColors() {
     this._rgb = parseColor(this.opts.color, [255, 255, 255]);
     this._rgb2 = parseColor(this.opts.color2, [90, 90, 90]);
+    this._rgbStr = this._rgb.join(', ');
     this._isTransparentBg = this.opts.bg === 'transparent' || this.opts.bg === 'none';
     this._rgbBg = this._isTransparentBg ? null : parseColor(this.opts.bg, [0, 0, 0]).join(', ');
   }
@@ -199,6 +201,7 @@ export default class DotMatrix {
       if (!this.mouse.isDown) this.mouse.isHover = false;
     };
     this._onMove = (e) => {
+      if (!this.opts.interactive) return;
       const rect = this.canvas.getBoundingClientRect();
       const inside = e.clientX >= rect.left && e.clientX <= rect.right &&
                      e.clientY >= rect.top && e.clientY <= rect.bottom;
@@ -226,8 +229,8 @@ export default class DotMatrix {
         const scale = 1 / (this.size || 300);
         const dpx = cx * scale;
         const dpy = cy * scale;
-        this.opts.panX = clamp(this.opts.panX + dpx, -1.2, 1.2);
-        this.opts.panY = clamp(this.opts.panY + dpy, -1.2, 1.2);
+        this.opts.panX = clamp(this.opts.panX + dpx, -0.6, 0.6);
+        this.opts.panY = clamp(this.opts.panY + dpy, -0.6, 0.6);
       } else {
         const lock = this.opts.lockAxis;
         const dx = lock === 'x' ? 0 : cx * 0.005;
@@ -249,7 +252,9 @@ export default class DotMatrix {
 
       if (this.opts.absorption) {
         // Drop lock: manual intervention halts perpetual auto-spin
+        const wasSpin = this.opts.motion === 'spin';
         this.opts.motion = 'still';
+        if (wasSpin && this.opts.onMotionChange) this.opts.onMotionChange(this.opts.motion);
 
         const energy = this._vx * this._vx + this._vy * this._vy;
         if (timeSinceMove > 50 || energy < 0.00015) {
@@ -277,6 +282,7 @@ export default class DotMatrix {
       if (this.opts.interactive) e.preventDefault();
     };
     this._onDblClick = () => {
+      if (!this.opts.interactive) return;
       this.opts.motion = this.opts.motion === 'spin' ? 'still' : 'spin';
     };
     this._onWheel = (e) => {
@@ -296,6 +302,7 @@ export default class DotMatrix {
   }
 
   updateOptions(newOpts = {}) {
+    if (!newOpts || typeof newOpts !== 'object') return;
     const { shapeParams, shape, ...rest } = newOpts;
     const prevDensity = this.opts.density;
     const prevSeed = this.opts.seed;
@@ -307,6 +314,10 @@ export default class DotMatrix {
       rest.density = clamp(Number.isFinite(dn) ? dn : 1, 0.1, 4);
     }
     Object.assign(this.opts, rest);
+    const _fov = Number(this.opts.fov);
+    this.opts.fov = clamp(Number.isFinite(_fov) && _fov > 0 ? _fov : 360, 100, 4000);
+    const _zoom = Number(this.opts.zoom);
+    this.opts.zoom = clamp(Number.isFinite(_zoom) && _zoom > 0 ? _zoom : 1, 0.1, 5);
     this._syncColors();
 
     if (rest.initialRotation) {
@@ -335,7 +346,9 @@ export default class DotMatrix {
       }
     }
 
-    const rebuild = shape !== undefined || !!shapeParams ||
+    const shapeChanged = shape !== undefined && shape !== this.opts.shape;
+    const hasShapeParams = !!shapeParams && Object.keys(shapeParams).length > 0;
+    const rebuild = shapeChanged || hasShapeParams ||
       this.opts.density !== prevDensity || this.opts.seed !== prevSeed;
     if (rebuild) this.setShape(shape || this.opts.shape);
   }
@@ -393,6 +406,7 @@ export default class DotMatrix {
   }
 
   setState(state = {}) {
+    if (!state || typeof state !== 'object') return;
     this.params = {};
     this.updateOptions({ ...state, shapeParams: state.shapeParams || {} });
   }
@@ -459,8 +473,15 @@ export default class DotMatrix {
 
       // Magnetic Detent Basin (Snap to Top & Cardinal Anchors)
       if (opts.snapToDetent && Math.abs(this.spinX) < 0.018 && Math.abs(this.spinY) < 0.018) {
-        const normPitch = ((this.ax % TAU) + TAU + Math.PI) % TAU - Math.PI;
-        const detentPitch = Math.PI / 2; // Top orientation
+        const vwD = VIEWS[opts.view] || VIEWS.free;
+        let swXD = 0;
+        if (opts.motion === 'sway') {
+          const phD = this.t * opts.speedY;
+          swXD = Math.sin(phD * 0.7 + 1) * opts.swing * 0.5;
+        }
+        const visualPitch = this.ax + vwD[0] + opts.viewX + swXD + this._hovX;
+        const normPitch = ((visualPitch % TAU) + TAU + Math.PI) % TAU - Math.PI;
+        const detentPitch = Math.PI / 2;
         const diffPitch = detentPitch - normPitch;
 
         // Gravitational basin capture (~20 degrees)
@@ -547,7 +568,7 @@ export default class DotMatrix {
       for (let b = 0; b < ALPHA_BUCKETS; b++) {
         const list = buckets[b];
         if (!list.length) continue;
-        ctx.fillStyle = `rgba(${this._rgb.join(', ')}, ${(b + 1) / ALPHA_BUCKETS})`;
+        ctx.fillStyle = `rgba(${this._rgbStr}, ${(b + 1) / ALPHA_BUCKETS})`;
         ctx.beginPath();
         for (const o of list) {
           ctx.moveTo(o.px + o.r, o.py);
@@ -556,15 +577,28 @@ export default class DotMatrix {
         ctx.fill();
       }
     } else {
-      const list = opts.depthSort ? pool.slice(0, n).sort((a, b) => b.z - a.z) : pool;
-      const count = opts.depthSort ? list.length : n;
+      let _mixC = null;
+      if (!solid) {
+        _mixC = this._mixCache || (this._mixCache = new Array(16));
+        for (let i = 0; i < 16; i++) _mixC[i] = mixColor(this._rgb, this._rgb2, i / 15);
+      }
+      let list = pool;
+      let count = n;
+      if (opts.depthSort) {
+        const sb = this._sortBuf || (this._sortBuf = []);
+        sb.length = 0;
+        for (let i = 0; i < n; i++) sb.push(pool[i]);
+        sb.sort((a, b) => b.z - a.z);
+        list = sb;
+        count = sb.length;
+      }
       for (let i = 0; i < count; i++) {
         const o = list[i];
         ctx.beginPath();
         ctx.arc(o.px, o.py, o.r, 0, TAU);
         ctx.fillStyle = solid
-          ? `rgba(${this._rgb.join(', ')}, ${o.a})`
-          : `rgba(${mixColor(this._rgb, this._rgb2, o.m)}, ${o.a})`;
+          ? `rgba(${this._rgbStr}, ${o.a})`
+          : `rgba(${_mixC[Math.min(15, (o.m * 15) | 0)]}, ${o.a})`;
         ctx.fill();
       }
     }

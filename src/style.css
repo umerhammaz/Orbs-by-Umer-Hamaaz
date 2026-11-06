@@ -365,6 +365,20 @@ input[type="range"]::-webkit-slider-thumb:hover {
   background: var(--accent);
 }
 
+input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: var(--text-display);
+  border-radius: 0;
+  border: none;
+  transition: background 150ms ease;
+  cursor: pointer;
+}
+
+input[type="range"]::-moz-range-thumb:hover {
+  background: var(--accent);
+}
+
 /* Telemetry Readout Table */
 .data-table {
   display: flex;
@@ -744,4 +758,9 @@ pre code {
   .viewport-wrap {
     height: 400px;
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .signal-dot { animation: none; }
+  button, input, select, .hardware-card, .seg-btn, .tab-btn { transition: none; }
 }

@@ -129,7 +129,7 @@ export const SHAPES = {
       const L = P.layers;
       const total = ctx.n(P.points);
       const R = ctx.R * P.radius;
-      const golden = Math.PI * (1 + Math.sqrt(5));
+      const golden = Math.PI * (3 - Math.sqrt(5));
       let wsum = 0;
       for (let l = 0; l < L; l++) wsum += ((l + 1) / L) ** 2;
       const pts = [];
