@@ -182,6 +182,7 @@ export default class DotMatrix {
 
   bindEvents() {
     this._onDown = (e) => {
+      if (!this.opts.interactive) return;
       this.mouse.isDown = true;
       this.mouse.isPan = e.shiftKey || e.button === 1 || e.button === 2;
       this.mouse.lastX = e.clientX;
@@ -301,7 +302,10 @@ export default class DotMatrix {
     const prevMotion = this.opts.motion;
     const prevView = this.opts.view;
 
-    if (rest.density !== undefined) rest.density = clamp(Number(rest.density) || 1, 0.1, 4);
+    if (rest.density !== undefined) {
+      const dn = Number(rest.density);
+      rest.density = clamp(Number.isFinite(dn) ? dn : 1, 0.1, 4);
+    }
     Object.assign(this.opts, rest);
     this._syncColors();
 
@@ -525,7 +529,7 @@ export default class DotMatrix {
       o.px = w / 2 + panX + x3 * s * zoom;
       o.py = h / 2 + panY + y3 * s * zoom;
       o.r = Math.max(0.4, opts.pointSize * (1 + (s - 1) * opts.sizeByDepth) * zoomR);
-      o.a = clamp(1 - opts.depthFade * (1 - nn), 0.12, 1);
+      o.a = clamp(1 - opts.depthFade * nn, 0.12, 1);
       o.z = z2;
       o.m = opts.colorMode === 'height' ? clamp(0.5 + y3 / (size * 0.56), 0, 1) : 1 - nn;
       n++;
@@ -543,7 +547,7 @@ export default class DotMatrix {
       for (let b = 0; b < ALPHA_BUCKETS; b++) {
         const list = buckets[b];
         if (!list.length) continue;
-        ctx.fillStyle = `rgba(${opts.color}, ${(b + 1) / ALPHA_BUCKETS})`;
+        ctx.fillStyle = `rgba(${this._rgb.join(', ')}, ${(b + 1) / ALPHA_BUCKETS})`;
         ctx.beginPath();
         for (const o of list) {
           ctx.moveTo(o.px + o.r, o.py);
@@ -559,7 +563,7 @@ export default class DotMatrix {
         ctx.beginPath();
         ctx.arc(o.px, o.py, o.r, 0, TAU);
         ctx.fillStyle = solid
-          ? `rgba(${opts.color}, ${o.a})`
+          ? `rgba(${this._rgb.join(', ')}, ${o.a})`
           : `rgba(${mixColor(this._rgb, this._rgb2, o.m)}, ${o.a})`;
         ctx.fill();
       }

@@ -127,7 +127,14 @@ function decimals(step) {
   return i < 0 ? 0 : s.length - i - 1;
 }
 
-const rgbToHex = (str) => '#' + str.split(',').map((n) => Math.max(0, Math.min(255, Number(n.trim()) || 0)).toString(16).padStart(2, '0')).join('');
+const rgbToHex = (str) => {
+  if (typeof str === 'string' && str.startsWith('#')) {
+    const h = str.slice(1);
+    if (h.length === 3) return '#' + h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    if (h.length >= 6) return '#' + h.slice(0, 6).toLowerCase();
+  }
+  return '#' + String(str).split(',').map((n) => Math.max(0, Math.min(255, Number(n.trim()) || 0)).toString(16).padStart(2, '0')).join('');
+};
 const hexToRgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ');
 
 function makeControl(spec) {
@@ -149,8 +156,14 @@ function makeControl(spec) {
     input.addEventListener('input', () => {
       const v = spec.type === 'int' ? parseInt(input.value, 10) : parseFloat(input.value);
       readout.textContent = v.toFixed(d);
-      spec.onInput(v);
+      if (!spec.debounce) spec.onInput(v);
     });
+    if (spec.debounce) {
+      input.addEventListener('change', () => {
+        const v = spec.type === 'int' ? parseInt(input.value, 10) : parseFloat(input.value);
+        spec.onInput(v);
+      });
+    }
     row.appendChild(input);
   } else if (spec.type === 'int') {
     const input = el('input', 'ctl-number');
@@ -247,7 +260,8 @@ function buildShapeParams() {
       onInput: (v) => {
         studio.setShapeParam(key, v);
         updateCodeSnippet();
-      }
+      },
+      debounce: !s.live
     }));
   }
 }
@@ -509,6 +523,8 @@ $('btn-reset')?.addEventListener('click', () => {
   buildShapeParams();
   buildEngineControls();
   updateCodeSnippet();
+  const _wrap = document.querySelector('.viewport-wrap');
+  if (_wrap) _wrap.classList.toggle('bg-transparent', studio.opts.bg === 'transparent');
 });
 
 $('btn-reset-params')?.addEventListener('click', () => {
@@ -554,6 +570,8 @@ syncStaticSliders();
 buildShapeParams();
 buildEngineControls();
 updateCodeSnippet();
+const _wrapInit = document.querySelector('.viewport-wrap');
+if (_wrapInit) _wrapInit.classList.toggle('bg-transparent', studio.opts.bg === 'transparent');
 
 // ==========================================================================
 // 3. Real-World AI & Interaction Use Cases (Defensively Guarded)
